@@ -1,0 +1,73 @@
+\documentclass[12pt]{ctexart}
+
+\usepackage[paperwidth=210mm, paperheight=297mm,
+top=2cm, bottom=1.5cm,
+left=1.8cm, right=1.8cm,
+headheight=15pt]{geometry}
+
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\tcbuselibrary{breakable}
+\usepackage{fancyhdr}
+\usepackage{calc}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\sffamily 错题收录}
+\fancyfoot[C]{\sffamily\color{black}\small 第\,\thepage\,页}
+\renewcommand{\headrulewidth}{1pt}
+
+\newlength{\problemTopSkip}
+\newlength{\problemBottomSkip}
+\setlength{\problemTopSkip}{0.02\paperheight}   % ★ 页首一点基础空白（约6mm）
+\setlength{\problemBottomSkip}{6mm}             % ★ 只留基础间距，大留白交给 \vfill
+
+\newcounter{problemcount}                       % ★ 计数器：本页已排几题
+
+\newtcolorbox{problem}[2]{%
+	frame empty,
+	colback=white,
+	boxrule = 0pt,
+	left    = 0pt,
+	right   = 0pt,
+	top     = 0pt,
+	bottom  = 0pt,
+	breakable = true,
+	before skip = \problemTopSkip,
+	after skip  = \problemBottomSkip,
+	fontupper = \bfseries,
+	before upper = {\noindent\textbf{#1\quad #2}\par\smallskip},
+	after = {%                                   % ★ 核心：弹性留白 + 每3题换页
+		\stepcounter{problemcount}%
+		\par\vfill                               % ★ 每题后弹性空白，自动均分
+		\ifnum\value{problemcount}=3\relax
+		\setcounter{problemcount}{0}%
+		\clearpage
+		\fi
+	},
+}
+
+\begin{document}
+	\setlength{\parindent}{0pt}
+	
+	\begin{problem}{01}{知识点 A}
+		此处填写题干（第 1 题）
+	\end{problem}
+	
+	\begin{problem}{02}{知识点 B}
+		此处填写题干（第 2 题）
+	\end{problem}
+	
+	\begin{problem}{03}{知识点 C}
+		此处填写题干（第 3 题，本题后强制换页）
+	\end{problem}
+	
+	\begin{problem}{04}{知识点 D}
+		此处填写题干（第 4 题，应在新页页首）
+	\end{problem}
+	
+	\begin{problem}{05}{知识点 E}
+		此处填写题干（第 5 题）
+	\end{problem}
+	
+\end{document}

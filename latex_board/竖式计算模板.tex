@@ -1,0 +1,139 @@
+\documentclass[10pt,a4paper]{ctexart}
+\usepackage[paper=a4paper,textwidth=176mm,textheight=250mm,centering]{geometry}
+\usepackage{tikz}
+\usepackage{tikzpagenodes}
+\usepackage{eso-pic}
+\usepackage{fancyhdr}
+\usepackage{pifont}
+\usepackage{datatool}      % 读取 CSV
+\usepackage{pgffor}        % 提供 \foreach 循环
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\setlength{\headheight}{18pt}
+\setlength{\topskip}{0pt}
+\setlength{\footskip}{20pt}
+
+% ----- 读取 CSV 文件（请确保文件名正确） -----
+\DTLloaddb{questions}{files/equations.csv}   % 数据表名为 questions
+
+% ----- 页眉和页脚（天数将由循环动态设置）-----
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\Large 第\hwday 天}    % \hwday 在循环中动态定义
+\chead{}
+\rhead{}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% ----- 每页背景十字虚线 -----
+\AddToShipoutPictureBG{%
+	\begin{tikzpicture}[remember picture, overlay]
+		\draw[dashed, thick, gray] 
+		(current page text area.west) -- (current page text area.east);
+		\draw[dashed, thick, gray] 
+		(current page text area.north) -- (current page text area.south);
+	\end{tikzpicture}%
+}
+
+% ----- 辅助命令：将 CSV 中的 * 转为 \times，/ 转为 \div -----
+\newcommand{\parseQ}[1]{%
+	\def\temp{#1}%
+	\edef\temp{\expandafter\string\temp}% 确保宏展开
+	% 简单替换：用 \xdef 配合 \StrSubstitute（需要 xstring 包），这里用简单方法
+	% 使用 \xstring 更可靠，我们直接用 ifthen 处理，但这里直接使用原始的 * 和 / 在数学模式下也能工作？
+	% 在数学模式下，* 和 / 会被原样输出，不美观，所以最好替换。
+	% 为了简化，我们建议用户在 CSV 中直接写 LaTeX 代码，如 "32 \times 31"。
+	% 但这样在 CSV 里需要加引号，可能会复杂。
+	% 这里提供一种简单方法：使用 \pgfkeys 或直接替换。
+	% 更好的做法：使用 \DTLfetch 得到字符串，然后进行替换。
+	% 此处我们采用一种简便方式：定义两个宏，并在显示时用 \mathcode 让 * 和 / 按预期显示？
+	% 标准做法：将 * 改为 \cdot 或 \times，/ 改为 \div。
+	% 由于在 LaTeX 的数学模式中，* 默认是普通符号，/ 是分数线（不好看）。
+	% 我们推荐用户在 CSV 中直接写 LaTeX 表达式，如 "32 \times 31"。
+	% 为了兼容，我们提供一个替代：使用 \scantokens 或 \StrSubstitute。
+	% 以下使用 xstring 宏包（需要添加 \usepackage{xstring}）。
+	% 为避免增加包，我们采用更直接的方法：\DTLfetch 得到的是 \protected 字符串，我们可用 \DTLreplace 等。
+	% 我们采用一个技巧：在显示时用 \ensuremath{...} 并让 * 和 / 成为活动字符。
+	% 但这里我们简单建议用户在 CSV 中直接写 \times 和 \div，例如 "32 \times 31"。
+	% 这样最可靠，无需额外处理。
+	% 我们按此要求，用户只需在 CSV 中写 \times 和 \div 即可。
+	#1% 直接输出（用户需在 CSV 中用 \times 和 \div 表示）
+}
+% 因此，在下面的循环中，我们直接用 \DTLfetch 得到的值，以文本方式插入数学模式。
+
+\begin{document}
+	\pagestyle{fancy}
+	
+	% ----- 循环处理每一天（假设 CSV 有 Day 列） -----
+	\DTLforeach{questions}{%
+		\day=Day,
+		\qOne=Q1,\qTwo=Q2,\qThree=Q3,\qFour=Q4,
+		\qFive=Q5,\qSix=Q6,\qSeven=Q7,\qEight=Q8%
+	}{%
+		% 定义当前天数，用于页眉
+		\def\hwday{\day}%
+		%
+		% ----- 第一页（①~④） -----
+		\noindent
+		\begin{minipage}[t][\textheight][t]{\textwidth}
+			\vspace*{0pt}
+			\noindent
+			\begin{minipage}[t][0.5\textheight][t]{0.5\textwidth}
+				\raggedright
+				\vspace{4ex}
+				\hspace*{1.5em}{\Large\ding{172}}\quad {\Large $\qOne=$}
+			\end{minipage}%
+			\begin{minipage}[t][0.5\textheight][t]{0.5\textwidth}
+				\raggedright
+				\vspace{4ex}
+				\hspace*{1.5em}{\Large\ding{173}}\quad {\Large $\qTwo=$}
+			\end{minipage}
+			\vspace{0pt}
+			\noindent
+			\begin{minipage}[t][0.5\textheight][t]{0.5\textwidth}
+				\raggedright
+				\vspace{4ex}
+				\hspace*{1.5em}{\Large\ding{174}}\quad {\Large $\qThree=$}
+			\end{minipage}%
+			\begin{minipage}[t][0.5\textheight][t]{0.5\textwidth}
+				\raggedright
+				\vspace{4ex}
+				\hspace*{1.5em}{\Large\ding{175}}\quad {\Large $\qFour=$}
+			\end{minipage}
+		\end{minipage}
+		\newpage
+		%
+		% ----- 第二页（⑤~⑧） -----
+		\noindent
+		\begin{minipage}[t][\textheight][t]{\textwidth}
+			\vspace*{0pt}
+			\noindent
+			\begin{minipage}[t][0.5\textheight][t]{0.5\textwidth}
+				\raggedright
+				\vspace{4ex}
+				\hspace*{1.5em}{\Large\ding{176}}\quad {\Large $\qFive=$}
+			\end{minipage}%
+			\begin{minipage}[t][0.5\textheight][t]{0.5\textwidth}
+				\raggedright
+				\vspace{4ex}
+				\hspace*{1.5em}{\Large\ding{177}}\quad {\Large $\qSix=$}
+			\end{minipage}
+			\vspace{0pt}
+			\noindent
+			\begin{minipage}[t][0.5\textheight][t]{0.5\textwidth}
+				\raggedright
+				\vspace{4ex}
+				\hspace*{1.5em}{\Large\ding{178}}\quad {\Large $\qSeven=$}
+			\end{minipage}%
+			\begin{minipage}[t][0.5\textheight][t]{0.5\textwidth}
+				\raggedright
+				\vspace{4ex}
+				\hspace*{1.5em}{\Large\ding{179}}\quad {\Large $\qEight=$}
+			\end{minipage}
+		\end{minipage}
+		\newpage   % 为下一天开始新页（最后一天不会多余，因为后面没有内容）
+	}
+	
+\end{document}
