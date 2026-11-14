@@ -3,17 +3,17 @@
     name: Build macOS App with Bundled TeX
     max_build_duration: 60
     instance_type: mac_mini_m2
-    environment:
-      python: 3.13
+
     scripts:
       - name: Install Python dependencies
         script: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          # 使用系统自带的 python3
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt
 
       - name: Install BasicTeX and required packages
         script: |
-          # 1. 通过 Homebrew 安装 BasicTeX[reference:1]
+          # 1. 通过 Homebrew 安装 BasicTeX
           brew install --cask basictex
           
           # 2. 刷新 PATH，使 xelatex 和 tlmgr 命令生效
@@ -29,12 +29,9 @@
           mkdir -p texlive/bin/universal-darwin
           
           # 将系统安装的 BasicTeX 可执行文件复制过来
-          # BasicTeX 通常安装在 /usr/local/texlive/*basic/bin/universal-darwin/
           cp /usr/local/texlive/*basic/bin/universal-darwin/xelatex texlive/bin/universal-darwin/
           
-          # 复制 tlmgr 和其他必要的支持文件（texmf-dist 等）
-          # 为了减小体积，只复制 xelatex 运行所必需的部分
-          # BasicTeX 的 texmf-dist 通常位于 /usr/local/texlive/*basic/texmf-dist
+          # 复制 texmf-dist 等依赖文件
           cp -R /usr/local/texlive/*basic/texmf-dist texlive/
           
           # 验证文件已就位
@@ -56,8 +53,8 @@
 
       - name: Build with PyInstaller
         script: |
-          # 关键：使用 --add-data "texlive:texlive" 将便携版 TeX 打包进 .app
-          pyinstaller collect_deps.py \
+          # 关键：使用 python3 -m PyInstaller 确保调用正确，并打包 texlive
+          python3 -m PyInstaller collect_deps.py \
             --name "MathMistakeBook" \
             --windowed \
             --onedir \
