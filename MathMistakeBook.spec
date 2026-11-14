@@ -1,4 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
 from pathlib import Path
 import sys
 
@@ -31,6 +32,23 @@ datas += [
     (str(root / ".streamlit" / "config.toml"), ".streamlit"),
     *[(str(template), "latex_board") for template in template_dir.glob("*.tex")],
 ]
+if sys.platform == "darwin" and (texlive_dir := os.environ.get("MMB_TEXLIVE_DIR")):
+    texlive = Path(texlive_dir)
+    # PyInstaller places and signs the Mach-O tools and links them into the
+    # resource tree so Kpathsea can still locate the formats and macros.
+    binaries += [
+        (str(texlive / "bin" / "bundle" / name), "texlive/bin/universal-darwin")
+        for name in ("xelatex", "xdvipdfmx")
+    ]
+    datas += [
+        (str(texlive / name), "texlive")
+        for name in ("texmf.cnf", "LICENSE.TL", "LICENSE.CTAN")
+    ]
+    datas += [
+        (str(texlive / name), f"texlive/{name}")
+        for name in ("texmf-dist", "texmf-config", "texmf-var", "texmf-local")
+        if (texlive / name).is_dir()
+    ]
 hidden += ["app", "uvicorn.logging"]
 for package in ("mistakes", "uvicorn", "tiktoken_ext"):
     hidden += collect_submodules(package)

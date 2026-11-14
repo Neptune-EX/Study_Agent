@@ -68,7 +68,7 @@ if (-not (Test-Path .\.venv\Scripts\python.exe)) { python -m venv .venv }
 Codemagic 的 `macos-build` 在 Apple 芯片的 Mac 上构建，产物为 `dist/macos/MathMistakeBook-macOS.zip`。解压后从 Finder 打开 `MathMistakeBook.app`。GitHub Actions 的 `Build macOS App` 也使用同一套构建脚本。两条流程都需要仓库包含 [MathMistakeBook.spec](MathMistakeBook.spec)、[构建脚本](scripts/build_macos.sh) 和 [验收脚本](scripts/check_macos_app.py)。
 
 - **打包**　Windows 和 Mac 共用 `launch.py` 和 PyInstaller spec，由 spec 在 macOS 上额外生成 `.app`。Mac 的 Python 依赖通过 `requirements.txt` 安装，PyObjC 依赖带有 macOS 平台条件。
-- **PDF 编译**　构建机安装 TeX Live 基础方案并补齐 XeLaTeX、CTeX、TikZ、tcolorbox 和 Fandol 中文字体，跳过宏包文档和源码包。安装树和预生成的 XeLaTeX 格式文件随应用分发。生成的应用可直接使用随包引擎，目标 Mac 无需另外安装 MacTeX。 [TeX Live 安装文档](https://tug.org/texlive/doc/texlive-en/texlive-en.html)
+- **PDF 编译**　构建机安装 TeX Live 基础方案并补齐 CTeX、TikZ、tcolorbox 和 Fandol 中文字体。PyInstaller 在签名前收集 XeLaTeX、xdvipdfmx、宏包、字体和预生成的格式文件。目标 Mac 无需另外安装 MacTeX。 [TeX Live 安装文档](https://tug.org/texlive/doc/texlive-en/texlive-en.html)
 - **配置、记录和下载**　Mac 打包版将 `.env`、SQLite 和日志写到 `~/Library/Application Support/MathMistakes/`。Windows 打包版使用 `%LOCALAPPDATA%\MathMistakeBook`。两者都支持选择导出目录，Mac 版会用 Finder 打开保存目录。
 - **云端验证**　流程会检查包签名、启动包内服务，并用包内 XeLaTeX 编译文字和图形模板的中文样例。验证使用临时数据库，无需 DeepSeek API Key。签名采用临时签名，用于测试。向其他用户分发前，还需配置 Developer ID 签名和 Apple 公证，并在目标 Mac 上确认 Finder 双击和导出。 [Apple 签名与公证说明](https://developer.apple.com/developer-id/)
 

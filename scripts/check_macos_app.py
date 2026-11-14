@@ -72,10 +72,14 @@ def check_pdf(executable: Path, env: dict[str, str], directory: Path):
 if __name__ == "__main__":
     app = Path(sys.argv[1]).resolve()
     executable = app / "Contents/MacOS/MathMistakeBook"
-    tex_bin = app / "Contents/Resources/texlive/bin/universal-darwin"
+    tex = app / "Contents/Resources/texlive"
+    tex_bin = tex / "bin/universal-darwin"
     for name in ("xelatex", "xdvipdfmx"):
-        if not os.access(tex_bin / name, os.X_OK):
+        tool = tex_bin / name
+        if not os.access(tool, os.X_OK) or not tool.resolve().is_relative_to(app):
             raise RuntimeError(f"The app is missing bundled {name}.")
+    if not (tex / "texmf-var/web2c/xetex/xelatex.fmt").is_file():
+        raise RuntimeError("The app is missing the prebuilt XeLaTeX format.")
     with TemporaryDirectory(prefix="mathmistakebook-smoke-") as temporary:
         home = Path(temporary)
         env = {

@@ -28,14 +28,17 @@ printf '%s\n' '\ctex_set:nn { option } { fontset = fandol }' \
     > "$tex/texmf-config/tex/latex/ctex/ctexopts.cfg"
 PATH="$tex_bin:$PATH" "$tex_bin/mktexlsr"
 PATH="$tex_bin:$PATH" "$tex_bin/fmtutil-sys" --byfmt xelatex
-test -x "$tex_bin/xdvipdfmx"
 du -sh "$tex"
 
-"$python_bin" -m PyInstaller --clean --noconfirm --distpath "$dist" MathMistakeBook.spec
-mv "$tex" "$app/Contents/Resources/texlive"
-# Refresh the ad-hoc signature after adding the TeX runtime.
-/usr/bin/codesign --force --sign - "$app"
-/usr/bin/codesign --verify --deep --strict "$app"
+# Install real files for the two entry points. In TeX Live xelatex is
+# usually a symlink to xetex, but XeTeX needs the xelatex name for its format.
+mkdir -p "$tex/bin/bundle"
+for tool in xelatex xdvipdfmx; do
+    /usr/bin/install -m 755 "$tex_bin/$tool" "$tex/bin/bundle/$tool"
+done
+MMB_TEXLIVE_DIR="$tex" PYINSTALLER_STRICT_BUNDLE_CODESIGN_ERROR=1 "$python_bin" -m PyInstaller \
+    --clean --noconfirm --distpath "$dist" MathMistakeBook.spec
+/usr/bin/codesign --verify --deep --strict --verbose=2 "$app"
 
 "$python_bin" -m scripts.check_macos_app "$app"
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$app" "$dist/MathMistakeBook-macOS.zip"
