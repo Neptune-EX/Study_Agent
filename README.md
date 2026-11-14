@@ -23,19 +23,39 @@ notepad .env
 
 ## Windows EXE 打包
 
-在项目根目录打开 PowerShell，确认已安装 Python 3.11 或以上版本，并将完整的 Windows TeX Live 安装目录放在项目的 `texlive` 下。打包脚本会把整个 TeX Live 目录复制到发布目录。
+桌面版用 `MathMistakeBook.spec` 打包 `launch.py`，生成 `MathMistakeBook.exe` 及其运行依赖。脚本另将 Windows TeX Live 复制到 EXE 同级的 `texlive`，供发布版编译 PDF。
+
+### GitHub 仓库最少保留什么
+
+| 内容 | 需保留的文件 |
+| --- | --- |
+| 构建入口和依赖 | `build.ps1`、`MathMistakeBook.spec`、`requirements.txt`。请把 `MathMistakeBook.spec` 纳入 Git，新 clone 才会带上它。 |
+| 应用及后台任务 | `launch.py`、`app.py`、`paths.py`、`pyi_runtime.py` 和整个 `mistakes/` 源码目录。 |
+| 随包资源 | `.streamlit/config.toml`、`latex_board/应用题错题模板.tex`、`latex_board/图形题错题模板.tex`。可继续保留 `latex_board/` 根目录的其他模板。 |
+
+`.env.example` 可保留供源码版配置使用。`.env`、历史数据库 `data/`、`.venv/`、`build/`、`dist/`、`build-exe.log` 和旧的 `collect_deps.py` 都无需上传。`latex_board/files/` 和 `latex_board/Picture/` 中的示例文件可按需保留。
+
+`texlive/` 可以从 Git 索引移除并留在本机。若之前已跟踪它，在项目根目录执行 `git rm -r --cached -- texlive`，然后提交索引中的删除和 `.gitignore`。这个命令会保留本地文件，旧提交中已经保存的 TeX Live 仍会留在 Git 历史里。 [GitHub 忽略文件说明](https://docs.github.com/en/get-started/git-basics/ignoring-files)
+
+### 从源码构建
+
+在项目根目录打开 PowerShell，使用 Windows Python 3.11 或以上版本。先创建或复用本机虚拟环境，并安装依赖。
 
 ~~~powershell
 if (-not (Test-Path .\.venv\Scripts\python.exe)) { python -m venv .venv }
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-Test-Path .\texlive\bin\windows\xelatex.exe
 ~~~
 
-最后一条命令返回 `True` 后，在同一个 PowerShell 窗口执行打包。
+准备一套可用的 Windows TeX Live 安装目录，含 `bin/windows/`、宏包树 `texmf-dist/`、安装生成的配置和格式文件，以及中文字体。应保留安装目录的完整结构。新 clone 可把原有便携安装目录放回项目的 `texlive/`，也可使用 `-TeXLivePath` 指向另一处安装目录。重新安装时可在 TeX Live 安装器中选择便携模式，安装 XeLaTeX、CTeX、TikZ、tcolorbox 和中文字体。只有 `xelatex.exe` 时，仍缺少 DLL、宏包和 PDF 转换程序。 [TeX Live 官方安装说明](https://tug.org/texlive/acquire-netinstall.html)
+
+用 `-CheckOnly` 检查本机的 PyInstaller、spec 和 TeX Live 关键文件。检查通过后执行第二条命令开始打包。
 
 ~~~powershell
+.\build.ps1 -CheckOnly
 .\build.ps1
 ~~~
+
+如果 TeX Live 在项目之外，检查和构建都传入实际的安装根目录，例如 `.\build.ps1 -TeXLivePath 'C:\texlive\2026'`，检查时再加 `-CheckOnly`。构建时无需 DeepSeek API Key。
 
 若 PowerShell 的执行策略拦截脚本，可用 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1` 为本次打包运行脚本。
 

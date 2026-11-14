@@ -1,8 +1,26 @@
+# 虚拟环境
 .venv/
-.env
+venv/
+
+# Python 缓存
 __pycache__/
-.streamlit/secrets.toml
-data/
+*.py[cod]
+*$py.class
+
+# 构建产物与日志
 build/
 dist/
+*.spec
+!MathMistakeBook.spec
+collect_deps.py
 build-exe.log
+
+# 敏感配置与本地数据
+.env
+data/
+导出/
+*.worker.log
+*.worker.lock
+
+# 超大依赖（留在本地，不上传）
+texlive/
