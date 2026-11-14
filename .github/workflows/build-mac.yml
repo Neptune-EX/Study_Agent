@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-14 # Apple Silicon (M1/M2/M3) 环境
+    runs-on: macos-15 # 【已修改】使用最新的 Apple Silicon 环境
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -22,9 +22,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Generate collect_deps.py
+        run: |
+          # 【新增】动态生成依赖收集文件，防止云端找不到该文件
+          cat << 'EOF' > collect_deps.py
+          from mistakes import debug, deepseek, download, inputs, latex, launcher, models, selection, store, workflow, worker
+          import langchain_openai
+          import openai
+          import pydantic
+          import pymupdf
+          import PIL
+          import pandas
+          import altair
+          import jinja2
+          EOF
+
       - name: Build with PyInstaller
         run: |
-          # 注意：这里去掉了 texlive，如果你想让用户自己装 MacTeX，就不加 texlive
+          # 注意：Mac 下的路径分隔符是冒号 ":"，Windows 是分号 ";"
           pyinstaller collect_deps.py \
             --name "MathMistakeBook" \
             --windowed \
@@ -35,7 +50,8 @@ jobs:
             --add-data "mistakes:mistakes" \
             --add-data "latex_board:latex_board" \
             --collect-all streamlit \
-            --copy-metadata streamlit
+            --copy-metadata streamlit \
+            --hidden-import mistakes.worker
 
       - name: Package App
         run: |
