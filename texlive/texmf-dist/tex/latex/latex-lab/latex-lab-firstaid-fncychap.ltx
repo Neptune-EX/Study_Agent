@@ -1,0 +1,101 @@
+%%
+%% This is file `latex-lab-firstaid-fncychap.ltx',
+%% generated with the docstrip utility.
+%%
+%% The original source files were:
+%%
+%% latex-lab-firstaid.dtx  (with options: `fncychap')
+%% 
+%% This is a generated file.
+%% 
+%% Copyright 2021-2026 LaTeX Project
+%% 
+%% This file was generated from file(s) of the  `LaTeX-lab Bundle'.
+%% ------------------------------------------------------------------------------------
+%% 
+%% It may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3c
+%% of this license or (at your option) any later version.
+%% The latest version of this license is in
+%%    http://www.latex-project.org/lppl.txt
+%% and version 1.3c or later is part of all distributions of LaTeX
+%% version 2008 or later.
+%% 
+%% This file may only be distributed together with a copy of the LaTeX
+%% `LaTeX-lab Bundle'. You may however distribute the `LaTeX-lab Bundle'
+%% without such generated files.
+%% 
+%% The newest sources can be found below
+%% 
+%%    https://github.com/latex3/latex2e/blob/develop/required/latex-lab
+%% 
+%% Issues may be reported at
+%% 
+%%    https://github.com/latex3/latex2e/issues
+%% 
+%% 
+%% File: latex-lab-firstaid.dtx (C) Copyright 2023-2026 LaTeX Project
+\def\ltlabfirstaiddate{2026-10-26}
+\def\ltlabfirstaidversion{0.86l}
+\ExplSyntaxOn
+\EditInstance{heading}{chapter}{
+    after-vspace        = 0pt
+  , headformat-instance = fncychap
+}
+\DeclareTemplateInterface{headformat}{fncychap}{6}{}
+\DeclareTemplateCode{headformat}{fncychap}{6}{}
+{
+  \__head_show_arguments:nnnnnn {#1}{#2}{#3}{#4}{#5}{#6}
+  \group_begin:
+    \bool_if:NTF \l__head_unnumbered_bool
+      { \MakeLinkTarget [ \l__head_name_tl ] {}   }
+      { \MakeLinkTarget { \l__head_name_tl }      }
+    \parindent 0pt
+    \raggedright
+    \interlinepenalty 10000
+    \normalfont
+    \AssignTaggingSocketPlug{parbox/before}{heading}
+    \AssignTaggingSocketPlug{minipage/before}{heading}
+    \AssignTaggingSocketPlug{para/restore}{noop}
+    \fncychap@setup@thechapter
+    \bool_if:NF \l__head_unnumbered_bool
+      { \DOCH }
+    \legacy_if:nTF { @mainmatter }
+      { \DOTI{#4}  }
+      { \DOTIS{#4} }
+    \par
+  \group_end:
+}
+\DeclareInstance{headformat}{fncychap}{fncychap}{}
+\def\fncychap@setup@thechapter{
+  \def\thechapter{\thespecialchapter{\@arabic\c@chapter}}
+}
+\def\appendix{\par
+  \setcounter{chapter}{0}
+  \setcounter{section}{0}
+  \gdef\@chapapp{\appendixname}
+  \gdef\thechapter{\@Alph\c@chapter}
+  \gdef\fncychap@setup@thechapter{
+    \def\thechapter{\thespecialchapter{\@Alph\c@chapter}}
+  }
+}
+\protected\def\thespecialchapter#1{
+  \leavevmode
+  \tag_if_in:nTF{Lbl}
+    { #1 }
+    {
+      \UseTaggingSocket{inline/begin}{tag=heading-number}
+      #1
+      \UseTaggingSocket{inline/end}
+    }
+}
+\protected\def\mghrulefill#1{\leavevmode
+  \UseTaggingSocket{rule}{}{
+    \leaders\hrule\@height #1\hfill\kern\z@
+  }
+}
+\ExplSyntaxOff
+
+\endinput
+%%
+%% End of file `latex-lab-firstaid-fncychap.ltx'.

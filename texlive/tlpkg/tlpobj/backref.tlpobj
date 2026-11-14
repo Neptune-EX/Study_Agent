@@ -1,0 +1,20 @@
+name backref
+category Package
+revision 80953
+shortdesc Make hyper-references back from bibliography to citation
+longdesc This package provides references back from the bibliography to
+longdesc citations.
+containersize 3712
+containerchecksum 5d00f13d8a1360bf60c3080a9c3c330f474c6029938953ecb261d58fdab0b800f30e83c56cf5949129eb6a7615a469590cc0739b9ba22eff05351c4e66097668
+doccontainersize 235652
+doccontainerchecksum 8115294915144e0f3fcb0813167a0532f110ece674081bb6b8ee7df1e81740176131e7cf2980b7d8e6579373b01d810d436cfdfb5c9ed9476416067f878263f7
+srccontainersize 8104
+srccontainerchecksum ba845571807844133076271fcfd5853db9ffdb6fee26297a013691cc7fbc924164b4dfebac041a8ccd62c6209d1fff3f946ce10e9b497c4974bd6c031f4633d9
+runfiles size=4
+ texmf-dist/tex/latex/backref/backref.sty
+catalogue-contact-bugs https://github.com/LaTeX-Package-Repositories/backref/issues
+catalogue-contact-repository https://github.com/LaTeX-Package-Repositories/backref
+catalogue-ctan /macros/latex/contrib/backref
+catalogue-license lppl1.3
+catalogue-topics bibtex-supp hyper tagged-pdf
+catalogue-version 1.46

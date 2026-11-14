@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 MistakeKind = Literal["choice", "blank", "word", "geometry"]
 Kind = Literal["choice", "blank", "word", "geometry", "vertical"]
 QuestionDifficulty = Literal["basic", "advanced"]
+PracticeDifficulty = Literal["巩固基础", "与原题相当", "适度提高"]
 DIFFICULTY_LABELS = {"basic": "基础 · Flash", "advanced": "进阶 · Pro"}
 MISTAKE_LABELS = {"choice": "选择题", "blank": "填空题", "word": "文字应用题", "geometry": "图形应用题"}
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
@@ -86,7 +87,7 @@ class ExerciseSet(Model):
 
 class PracticePlan(Model):
     count: int = Field(default=3, ge=1, le=6)
-    difficulty: Literal["巩固基础", "与原题相当", "适度提高"] = "与原题相当"
+    difficulty: PracticeDifficulty = "与原题相当"
     instructions: str = Field(default="", max_length=1500)
     allow_diagrams: bool = True
 
@@ -129,7 +130,40 @@ class Review(Model):
         return self.passed and not self.issues
 
 
+class ExerciseIssue(Model):
+    number: int = Field(ge=1, le=6)
+    kind: Literal["answer", "question"]
+    reason: Statement
+
+
+class ExerciseReview(Model):
+    checked: list[int] = Field(max_length=6)
+    issues: list[ExerciseIssue] = Field(max_length=6)
+
+
+class ExerciseCorrection(Model):
+    number: int = Field(ge=1, le=6)
+    exercise: TextExercise
+
+
+class ExerciseCorrections(Model):
+    corrections: list[ExerciseCorrection] = Field(max_length=6)
+
+
+class FollowupPractice(Model):
+    categories: list[str] = Field(default_factory=list)
+    unresolved_only: bool = False
+    count: int | None = Field(default=None, ge=1, le=6)
+    difficulty: PracticeDifficulty | None = None
+
+
+class Followup(Model):
+    mastered: set[str]
+    practice: FollowupPractice | None = None
+
+
 class TutorReply(Model):
     reply: Statement
+    practice: FollowupPractice | None = None
 
 

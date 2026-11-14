@@ -33,7 +33,7 @@ $events | Where-Object event -eq 'model.response' |
 
 ~~~powershell
 $events | Where-Object {
-    $_.stage -eq 'Flash 快速验算' -or $_.event -eq 'practice.rejected'
+    $_.stage -match '快速验算|修正练习' -or $_.event -eq 'practice.rejected'
 } | Format-List event,stage,call_id,question_id,input,reply,reason
 ~~~
 
@@ -48,7 +48,7 @@ reply 是应用收到的可见回答文本，包含模型返回的题干、答�
 | 关闭页面后想检查生成进度 | 错题记录或 data/mistakes.worker.log | generation_jobs 保存后台状态，generation_checkpoints 保存已完成的模型步骤。浏览器轮询进度，独立进程执行任务 |
 | 知识点或难度判断不对 | Flash 识图和 Flash 整理原题 | 对比回复的 knowledge、topic、subtype、difficulty 和 sources。确认页可更正知识点和难度 |
 | 有回复但未生成练习 | model.invalid_output、practice.rejected、batch.question_error | 前者说明 JSON 或字段校验失败，后两者说明程序规则、答案复核或原题疑义挡住了出题 |
-| 练习答案与题意不符 | Flash 或 Pro 生成练习、Flash 快速验算、practice.rejected | 简单等式由程序代入，其余题才会出现在 Flash 的验算请求中。按 question_id 对照生成与验算结果 |
+| 练习答案与题意不符 | 生成练习、快速验算、修正练习、practice.rejected | 可识别的等式由程序验算，其余题交给出题模型按题号复核。按 question_id 追踪，核对 checked、issues 及 corrections 中的题号 |
 | 没有 PDF | batch.saved、tex.compiled、tex.error | batch.saved 的 tex_bytes 大于 0 表示可点击「编译 PDF」。tex.error 的 output_tail 包含 XeLaTeX 输出末尾 |
 | PDF 已生成但下载失败 | 浏览器开发者工具的 Console | 点击下载后看是否有脚本错误，并检查下载列表。download_file 在浏览器内用已保存的字节创建下载文件 |
 

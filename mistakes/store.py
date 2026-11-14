@@ -6,7 +6,7 @@ import sqlite3
 import unicodedata
 from uuid import uuid4
 
-from .models import Exercise, Original, PracticePlan
+from .models import Exercise, Followup, FollowupPractice, Original, PracticePlan
 
 
 def category_name(original: Original) -> str:
@@ -48,6 +48,7 @@ class GenerationJob:
     debug_id: str | None
     action: str
     question_id: str | None = None
+    followup: Followup | None = None
 
 
 class Store:
@@ -102,7 +103,8 @@ class Store:
                     message TEXT NOT NULL DEFAULT '等待后台处理',
                     debug_id TEXT,
                     action TEXT NOT NULL DEFAULT 'generate',
-                    question_id TEXT REFERENCES questions(id) ON DELETE CASCADE
+                    question_id TEXT REFERENCES questions(id) ON DELETE CASCADE,
+                    followup TEXT
                 );
                 CREATE UNIQUE INDEX IF NOT EXISTS one_active_generation
                 ON generation_jobs(batch_id) WHERE state IN ('queued', 'running');
@@ -127,6 +129,12 @@ class Store:
                     PRIMARY KEY(batch_id, category)
                 );
                 CREATE INDEX IF NOT EXISTS question_message_order ON question_messages(question_id, id);
+                CREATE TABLE IF NOT EXISTS record_messages (
+                    job_id TEXT NOT NULL REFERENCES generation_jobs(id) ON DELETE CASCADE,
+                    role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
+                    content TEXT NOT NULL,
+                    PRIMARY KEY(job_id, role)
+                );
             """)
             db.execute("BEGIN IMMEDIATE")
             columns = {row["name"] for row in db.execute("PRAGMA table_info(batches)")}
@@ -141,6 +149,8 @@ class Store:
                 db.execute("ALTER TABLE generation_jobs ADD COLUMN action TEXT NOT NULL DEFAULT 'generate'")
             if "question_id" not in job_columns:
                 db.execute("ALTER TABLE generation_jobs ADD COLUMN question_id TEXT REFERENCES questions(id) ON DELETE CASCADE")
+            if "followup" not in job_columns:
+                db.execute("ALTER TABLE generation_jobs ADD COLUMN followup TEXT")
             question_columns = {row["name"] for row in db.execute("PRAGMA table_info(questions)")}
             if "mastered" not in question_columns:
                 db.execute("ALTER TABLE questions ADD COLUMN mastered INTEGER NOT NULL DEFAULT 0")
@@ -210,17 +220,24 @@ class Store:
 
     @staticmethod
     def insert_job(db: sqlite3.Connection, batch_id: str, plan: PracticePlan, action: str = "generate",
-                   question_id: str | None = None):
+                   question_id: str | None = None, *, followup: Followup | None = None):
         job_id = uuid4().hex
-        db.execute("INSERT INTO generation_jobs (id, batch_id, plan, action, question_id) VALUES (?, ?, ?, ?, ?)",
-                   (job_id, batch_id, plan.model_dump_json(), action, question_id))
+        db.execute(
+            "INSERT INTO generation_jobs (id, batch_id, plan, action, question_id, followup) VALUES (?, ?, ?, ?, ?, ?)",
+            (job_id, batch_id, plan.model_dump_json(), action, question_id,
+             followup.model_dump_json() if followup else None),
+        )
         return job_id
+
+    @staticmethod
+    def read_mastered(db: sqlite3.Connection, batch_id: str) -> set[str]:
+        return {row["category"] for row in db.execute(
+            "SELECT category FROM category_progress WHERE batch_id = ? AND mastered = 1", (batch_id,)
+        )}
 
     def mastered_categories(self, batch_id: str) -> set[str]:
         with self.connect() as db:
-            rows = db.execute("SELECT category FROM category_progress WHERE batch_id = ? AND mastered = 1",
-                              (batch_id,)).fetchall()
-        return {row["category"] for row in rows}
+            return self.read_mastered(db, batch_id)
 
     def set_category_mastered(self, batch_id: str, category: str, mastered: bool):
         with self.connect() as db:
@@ -229,45 +246,48 @@ class Store:
                 ON CONFLICT(batch_id, category) DO UPDATE SET mastered = excluded.mastered
             """, (batch_id, category, mastered))
 
-    def queue_followup(self, batch: Batch, question: Question, message: str, *, practice: bool):
+    def queue_followup(self, batch: Batch, message: str, *, plan: PracticePlan | None = None,
+                       practice: FollowupPractice | None = None):
         message = message.strip()
-        if not message and not practice:
+        if not message:
             raise ValueError("请先输入你的问题或解题过程。")
-        if len(message) > 1500:
-            raise ValueError("消息最多 1500 字。")
+        if len(message) > 1700:
+            raise ValueError("消息太长，请缩短后重试。")
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             self.ensure_idle(db, batch.id)
-            current = db.execute("""
-                SELECT q.category, q.original, b.revision, coalesce(p.mastered, 0) AS mastered
-                FROM batch_questions link JOIN questions q ON q.id = link.question_id
-                JOIN batches b ON b.id = link.batch_id
-                LEFT JOIN category_progress p ON p.batch_id = b.id AND p.category = q.category
-                WHERE b.id = ? AND q.id = ?
-            """, (batch.id, question.id)).fetchone()
-            if current is None or current["revision"] != batch.revision or current["original"] != question.original_json:
-                raise ValueError("这道题已更新，请刷新后重试。")
-            if current["mastered"]:
-                raise ValueError("请先将这类题标记为未解决。")
-            job_id = self.insert_job(db, batch.id, batch.plan, "append" if practice else "tutor", question.id)
-            db.execute("INSERT INTO question_messages (question_id, role, content, job_id) VALUES (?, 'user', ?, ?)",
-                       (question.id, message or "请再出一组同类型练习。", job_id))
+            current = db.execute("SELECT revision FROM batches WHERE id = ?", (batch.id,)).fetchone()
+            if current is None or current["revision"] != batch.revision:
+                raise ValueError("这份记录已更新，请刷新后重试。")
+            followup = Followup(mastered=self.read_mastered(db, batch.id), practice=practice)
+            action = "append" if practice or plan else "tutor"
+            job_id = self.insert_job(db, batch.id, plan or batch.plan, action, followup=followup)
+            db.execute("INSERT INTO record_messages VALUES (?, 'user', ?)", (job_id, message))
 
-    def category_messages(self, batch_id: str, category: str, *, limit: int | None = None) -> list[dict[str, str]]:
+    def promote_followup(self, job: GenerationJob, followup: Followup):
+        with self.connect() as db:
+            result = db.execute("""
+                UPDATE generation_jobs SET action = 'append', followup = ?
+                WHERE id = ? AND action = 'tutor' AND state = 'running'
+            """, (followup.model_dump_json(), job.id))
+            if result.rowcount != 1:
+                raise ValueError("这项对话任务已更新。")
+
+    def record_messages(self, batch_id: str, *, limit: int | None = None) -> list[dict[str, str]]:
         with self.connect() as db:
             rows = db.execute("""
-                SELECT m.role, m.content FROM question_messages m
-                JOIN batch_questions link ON link.question_id = m.question_id
-                JOIN questions q ON q.id = m.question_id
-                WHERE link.batch_id = ? AND q.category = ? ORDER BY m.id DESC LIMIT ?
-            """, (batch_id, category, -1 if limit is None else limit)).fetchall()
+                SELECT m.role, m.content FROM generation_jobs j JOIN (
+                    SELECT job_id, role, content FROM record_messages
+                    UNION ALL
+                    SELECT job_id, role, content FROM question_messages
+                ) m ON m.job_id = j.id
+                WHERE j.batch_id = ? ORDER BY j.rowid DESC, m.role ASC LIMIT ?
+            """, (batch_id, -1 if limit is None else limit)).fetchall()
         return [dict(row) for row in reversed(rows)]
 
     @staticmethod
     def complete_followup(db: sqlite3.Connection, job: GenerationJob, reply: str, message: str):
-        db.execute("""
-            INSERT INTO question_messages (question_id, role, content, job_id) VALUES (?, 'assistant', ?, ?)
-        """, (job.question_id, reply, job.id))
+        db.execute("INSERT INTO record_messages VALUES (?, 'assistant', ?)", (job.id, reply))
         result = db.execute("UPDATE generation_jobs SET state = 'done', message = ? WHERE id = ? AND state = 'running'",
                             (message, job.id))
         if result.rowcount != 1:
@@ -338,8 +358,10 @@ class Store:
 
     @staticmethod
     def decode_job(row: sqlite3.Row) -> GenerationJob:
+        followup = row["followup"]
         return GenerationJob(row["id"], row["batch_id"], PracticePlan.model_validate_json(row["plan"]),
-                             row["state"], row["message"], row["debug_id"], row["action"], row["question_id"])
+                             row["state"], row["message"], row["debug_id"], row["action"], row["question_id"],
+                             Followup.model_validate_json(followup) if followup else None)
 
     def latest_job(self, batch_id: str) -> GenerationJob | None:
         with self.connect() as db:

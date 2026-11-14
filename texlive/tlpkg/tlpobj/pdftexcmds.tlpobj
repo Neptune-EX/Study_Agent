@@ -1,0 +1,23 @@
+name pdftexcmds
+category Package
+revision 81091
+shortdesc LuaTeX support for pdfTeX utility functions
+longdesc LuaTeX provides most of the commands of pdfTeX 1.40. However, a
+longdesc number of utility functions are not available. This package
+longdesc tries to fill the gap and implements some of the missing
+longdesc primitives using Lua.
+containersize 6332
+containerchecksum 1adec4f5faedd0d6af9051dcdfa2bde4f608159de3a2c33974dea2eef612fd7e32a4dca090ebe3aaeeec40df0faf024c9b8e90882c158b156d727a993829f73c
+doccontainersize 392524
+doccontainerchecksum bef54cbd22f8ad858064b648ebc22343d9c6a034c22964a61e0e2b3e2dc92b80db1cf2b70069c6e25d8d9d13652e34aa80e36c87baf15c75ccf6d9c9a4d24b30
+srccontainersize 14092
+srccontainerchecksum 95c00e98294a5d2fc8842322801daccc1fff5a36c58ae8bedc113f26bb75f39fdbfda4f83b1ffe889d150409efac629a109157d8243089ba48e95c870ecc5d1e
+runfiles size=8
+ texmf-dist/tex/generic/pdftexcmds/pdftexcmds.lua
+ texmf-dist/tex/generic/pdftexcmds/pdftexcmds.sty
+catalogue-contact-bugs https://github.com/LaTeX-Package-Repositories/pdftexcmds/issues
+catalogue-contact-repository https://github.com/LaTeX-Package-Repositories/pdftexcmds
+catalogue-ctan /macros/generic/pdftexcmds
+catalogue-license lppl1.3c
+catalogue-topics macro-gen macro-supp tagged-pdf
+catalogue-version 0.34

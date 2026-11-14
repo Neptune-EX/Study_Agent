@@ -1,0 +1,19 @@
+name substr
+category Package
+revision 77682
+shortdesc Deal with substrings in strings
+longdesc The package provides commands to deal with substrings of
+longdesc strings. Macros are provided to: determine if one string is a
+longdesc substring of another, return the parts of a string before or
+longdesc after a substring, and count the number of occurrences of a
+longdesc substring.
+containersize 2028
+containerchecksum f7479088bfe88e65493e5d6e0ab9eca2f0f9a1bdb26bf8bbfb6d948fc2a0b3601f75f2791676e371994fe515051491998e4ff49d50a3d4c47d6fbedddcf48519
+doccontainersize 17760
+doccontainerchecksum a98bc9f60da7505e923659c81d87b86239c8ca3818603852e31236904cff6d3a471702741336d875243c4d6bd4ee31639ccd49dc4b0b611f366a4dc7fbb0d602
+runfiles size=2
+ texmf-dist/tex/latex/substr/substr.sty
+catalogue-ctan /macros/latex/contrib/substr
+catalogue-license lppl1
+catalogue-topics macro-supp tagged-pdf
+catalogue-version 1.2

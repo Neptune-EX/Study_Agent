@@ -9,7 +9,8 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
-DEBUG_DIR = Path(__file__).resolve().parents[1] / "data" / "debug"
+from paths import DATA_DIR
+DEBUG_DIR = DATA_DIR / "debug"
 _run_id: ContextVar[str | None] = ContextVar("mistake_debug_run", default=None)
 _fields: ContextVar[dict | None] = ContextVar("mistake_debug_fields", default=None)
 

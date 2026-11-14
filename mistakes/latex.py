@@ -1,15 +1,15 @@
-import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
+import sys
 from tempfile import TemporaryDirectory
 
+from paths import BUNDLE, FROZEN, find_xelatex
 from .debug import record
 from .store import Question
 from .models import Diagram, PracticePlan
 
-TEMPLATES = Path(__file__).resolve().parents[1] / "latex_board"
+TEMPLATES = BUNDLE / "latex_board"
 ORIGINALS_MARKER = b"% worksheet: originals included"
 SPECIAL = {
     "\\": r"\textbackslash{}", "{": r"\{", "}": r"\}", "$": r"\$",
@@ -180,24 +180,33 @@ def compile_tex(render) -> tuple[bytes, bytes]:
 
 
 def compile_source(tex: bytes) -> bytes:
-    executable = shutil.which(os.getenv("XELATEX", "xelatex"))
-    if not executable:
+    try:
+        executable = find_xelatex()
+    except FileNotFoundError as exc:
         record("tex.error", reason="找不到 XeLaTeX")
-        raise CompileError("找不到 XeLaTeX。请安装 TeX Live 或在 .env 中设置 XELATEX。")
+        raise CompileError(str(exc)) from exc
     with TemporaryDirectory(prefix="mistake-tex-") as temporary:
         directory = Path(temporary)
         pdf_path = directory / "worksheet.pdf"
         (directory / "worksheet.tex").write_bytes(tex)
         try:
+            if FROZEN and sys.platform == "win32":
+                import ctypes
+
+                ctypes.windll.kernel32.SetDllDirectoryW(None)
             result = subprocess.run(
                 [executable, "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error",
                  "-file-line-error", "worksheet.tex"],
                 cwd=directory, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 timeout=90, check=False,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
             )
         except subprocess.TimeoutExpired as exc:
             record("tex.error", reason="编译超时")
             raise CompileError("XeLaTeX 编译超时，请检查本机 TeX 安装。") from exc
+        finally:
+            if FROZEN and sys.platform == "win32":
+                ctypes.windll.kernel32.SetDllDirectoryW(str(BUNDLE))
         if result.returncode == 0 and pdf_path.is_file():
             pdf = pdf_path.read_bytes()
             record("tex.compiled", pdf_bytes=len(pdf))

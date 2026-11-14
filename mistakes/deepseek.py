@@ -12,6 +12,7 @@ from pydantic import BaseModel, ValidationError
 
 from .debug import debug_enabled, record, trace_input
 from .models import Exercise, ExerciseSet, Intake, Original, PracticePlan, Review, TextPageReading, TutorReply
+from .models import ExerciseCorrections, ExerciseReview
 
 T = TypeVar("T", bound=BaseModel)
 MATH = (
@@ -30,7 +31,7 @@ class DeepSeek:
     def __init__(self):
         key = os.getenv("DEEPSEEK_API_KEY", "").strip()
         if not key:
-            raise ModelError("请在 .env 中填写 DEEPSEEK_API_KEY，然后重启应用。")
+            raise ModelError("请在数学错题本中配置 DeepSeek API Key。")
         options = {
             "api_key": key,
             "base_url": os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
@@ -103,9 +104,12 @@ class DeepSeek:
             '"statement":"2 小时 = ______ 分钟","difficulty":"basic","sources":["1-1"]}]}',
         )
 
+    def practice_model(self, original: Original):
+        return (self.pro, "Pro") if original.difficulty == "advanced" else (self.flash, "Flash")
+
     def practice(self, original: Original, plan: PracticePlan, feedback: str, *,
                  conversation: list[dict] | None = None, previous: list[dict] | None = None) -> list[Exercise]:
-        advanced = original.difficulty == "advanced"
+        binding, name = self.practice_model(original)
         prompt = (
             f"根据原题生成恰好 {plan.count} 道同类数学练习。"
             "保留年级、知识点、subtype 的核心解法和作答形式，按出题要求控制难度。"
@@ -120,44 +124,75 @@ class DeepSeek:
             "review_feedback": feedback, "practice_plan": plan.model_dump(exclude={"allow_diagrams"}),
         }
         if conversation or previous:
-            prompt += "结合学生最近的疑问和作答，针对尚未掌握的步骤出题，避开已出过的题。"
+            prompt += (
+                "这是一份错题记录的追加练习。原题已经按用户选定的范围分配。"
+                "围绕给定原题出题，优先遵循本次练习的难度和最新要求，参考对话理解变式等补充要求。"
+                "对话若提到其他题型或整份题量，由程序统一分配。本次只输出要求的题数，避免与已出题重复。"
+            )
             payload.update(conversation=conversation, previous_exercises=previous)
         example = (
             '{"exercises":[{"statement":"24 ÷ 3 = ______","answer":"8","solution":"8 × 3 = 24"}]}'
         )
         result = self._request(
-            self.pro if advanced else self.flash,
-            "Pro 生成练习" if advanced else "Flash 生成练习",
+            binding, f"{name} 生成练习",
             prompt, json.dumps(payload, ensure_ascii=False), ExerciseSet,
             example,
         )
         return [Exercise(**item.model_dump()) for item in result.exercises]
 
-    def tutor(self, originals: list[Original], conversation: list[dict], exercises: list[dict]) -> str:
+    def tutor(self, originals: list[Original], conversation: list[dict], exercises: list[dict], *,
+              categories: list[dict], plan: PracticePlan) -> TutorReply:
         advanced = any(original.difficulty == "advanced" for original in originals)
         return self._request(
             self.pro if advanced else self.flash, "错题辅导",
-            "你是数学辅导老师。围绕这类原题、已出练习和最近对话，回应学生最后一条消息。"
-            "以对话提到的题为准。涉及多道题而无法判断指哪道时，简短询问题号。"
+            "你是数学辅导老师。结合整份错题记录的原题、已有练习、各题型的解决状态和最近对话，回应最后一条消息。"
+            "收集本次复习的意见，请用户决定是否针对未解决的题型继续出题，或按指定题型追加同类练习。"
+            "用户明确要求或确认追加练习时，返回 practice，由程序按范围出题并更新 TeX。"
+            "根据对话把指定题型映射为 categories 中的完整 name。未指定题型时，practice.categories 留空。"
+            "用户要求只练未解决的题型时，设置 practice.unresolved_only 为 true。两种限制同时指定时取交集。"
+            "只选择 can_practice 为 true 的题型。用户指定的题型无法匹配或含义不明确时，先询问，practice 留空。"
+            "本次题数和难度未指定时相应字段留空，沿用 defaults。若题数超过 6，询问如何分批。"
+            "如果用户仅在讨论、询问建议、表示暂不出题，或对多种选项只回复“好”而未明确选择，practice 留空。"
+            "用户明确要求追加同类题但没有限定范围时，使用整份记录。"
+            "reply 用于解释、提问或确认理解，确认追加时不要声称已经出题，也不要在 reply 中生成练习。"
             "学生给出思路或答案时先核对，指出卡住的步骤并给具体提示。"
             "学生明确要完整解析时再给完整解析。不代替学生标记是否掌握。用简体中文。",
             json.dumps({
                 "originals": [
-                    {"number": index, **item.model_dump(include={"statement", "options", "knowledge", "topic", "grade"})}
+                    {"record_index": index, **item.model_dump(include={
+                        "number", "statement", "options", "knowledge", "topic", "subtype", "grade",
+                    })}
                     for index, item in enumerate(originals, 1)
                 ],
-                "exercises": exercises, "conversation": conversation,
-            }, ensure_ascii=False), TutorReply, '{"reply":"先把小时换算成分钟，再比较两个量。"}',
-        ).reply
+                "exercises": exercises, "conversation": conversation, "categories": categories,
+                "defaults": {"count": plan.count, "difficulty": plan.difficulty},
+            }, ensure_ascii=False), TutorReply,
+            '{"reply":"可以按未解决的题型追加两道。","practice":{"unresolved_only":true,"count":2}}',
+        )
 
-    def review(self, problems: list[dict]) -> Review:
+    def review(self, original: Original, problems: list[dict]) -> ExerciseReview:
+        binding, name = self.practice_model(original)
         return self._request(
-            self.flash, "Flash 快速验算",
-            "逐题将给定答案代回题设验算。若无法代入，用最短的计算核对。"
-            "检查题目可解、答案及解析正确，选择题答案与选项匹配。"
-            "仅报告实质错误及对应题号。全部通过时 passed=true 且 issues=[]。",
+            binding, f"{name} 快速验算",
+            "先按题干独立验算，再核对答案、单位、选项字母及解析。"
+            "checked 列出本次核对过的所有题号。每道错题只报一项。"
+            "题设成立而答案或解析错误填 answer；条件不足、矛盾、无解、选项不成立或歧义填 question。"
+            "没有错误时 issues 为空。reason 写明证据或正确结果。",
             json.dumps({"problems": problems}, ensure_ascii=False),
-            Review, '{"passed":true,"issues":[]}',
+            ExerciseReview, '{"checked":[1],"issues":[]}',
+        )
+
+    def repair(self, original: Original, problems: list[dict]) -> ExerciseCorrections:
+        binding, name = self.practice_model(original)
+        return self._request(
+            binding, f"{name} 修正练习",
+            "按题号修正指定练习。answer 类仅修正答案和解析，题干和选项逐字保持；"
+            "question 类重写有问题的题干或选项，保持知识点和题型，再给出对应的答案与解析。"
+            "每道待修题恰好返回一次，保留原编号。" + MATH,
+            json.dumps({"topic": original.knowledge or original.topic, "problems": problems}, ensure_ascii=False),
+            ExerciseCorrections,
+            '{"corrections":[{"number":1,"exercise":{"statement":"2 + 3 = ______","answer":"5",'
+            '"solution":"2 加 3 等于 5。","options":[]}}]}',
         )
 
     @staticmethod

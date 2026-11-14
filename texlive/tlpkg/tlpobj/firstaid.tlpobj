@@ -1,0 +1,27 @@
+name firstaid
+category Package
+revision 80868
+catalogue latex-firstaid
+shortdesc First aid for external LaTeX files and packages that need updating
+longdesc This package contains some first aid for LaTeX packages or
+longdesc classes that require updates because of internal changes to the
+longdesc LaTeX kernel that are not yet reflected in the package's or
+longdesc class's code. The file latex2e-first-aid-for-external-files.ltx
+longdesc provided by this package is meant to be loaded during format
+longdesc generation and not by the user.
+containersize 5624
+containerchecksum b727c91002b5fc3c458f7594a18ed8ccea9bdf5b1096205795484f3353a180942858d4bd465d7799811b8dacc248fcdb225e7f25eca20ef4694efd13e7f9eb33
+doccontainersize 298528
+doccontainerchecksum 983b21ee665184b609e286d4579447294c11edda0e3643236f94a6f47510789a441d57b5e609497f1f84609bfdf332ac7b3ff6d6a4473f2b084e18f01987441f
+srccontainersize 12844
+srccontainerchecksum d936fdf5dd705d964797538b152f5b117a8b4d04da857a1d40a60b90fb0bad9727138933b165f8e58f579a04fecc2d41c9cb023d1834593721c98848131b112d
+runfiles size=8
+ texmf-dist/tex/latex/firstaid/filehook-ltx.sty
+ texmf-dist/tex/latex/firstaid/latex-firstaid-pkg-cleveref.ltx
+ texmf-dist/tex/latex/firstaid/latex-firstaid-pkg-zref-clever.ltx
+ texmf-dist/tex/latex/firstaid/latex2e-first-aid-for-external-files.ltx
+ texmf-dist/tex/latex/firstaid/underscore-ltx.sty
+catalogue-contact-home https://www.latex-project.org
+catalogue-ctan /macros/latex/required/firstaid
+catalogue-license lppl1.3c
+catalogue-topics bugfix format

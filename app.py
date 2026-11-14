@@ -1,9 +1,10 @@
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 from zoneinfo import ZoneInfo
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 from pydantic import ValidationError
 import streamlit as st
 
@@ -13,19 +14,47 @@ from mistakes.download import download_file
 from mistakes.inputs import IMAGE_TYPES, MAX_PAGES, MAX_UPLOAD_MB
 from mistakes.latex import ORIGINALS_MARKER, CompileError, render_batch
 from mistakes.launcher import start_worker
-from mistakes.models import DIFFICULTY_LABELS, Original, PracticePlan
+from mistakes.models import DIFFICULTY_LABELS, FollowupPractice, Original, PracticePlan
 from mistakes.selection import read_targets
 from mistakes.store import Batch, Question, Store
-from mistakes.workflow import IntakeRecord, analyze_upload, needs_figure
+from mistakes.workflow import RECORD_REVIEW_QUESTION, IntakeRecord, analyze_upload, needs_figure
+from paths import DATA_DIR, ENV_FILE
 
-ROOT = Path(__file__).resolve().parent
-load_dotenv(ROOT / ".env")
+
+load_dotenv(ENV_FILE)
+
 ERRORS = (ModelError, CompileError, ValueError, OSError, sqlite3.Error)
 GRADES = ["", "一年级", "二年级", "三年级", "四年级", "五年级", "六年级", "七年级", "八年级", "九年级",
           "高一", "高二", "高三"]
 LEVELS = ["巩固基础", "与原题相当", "适度提高"]
 LOCAL_TIME = ZoneInfo("Asia/Shanghai")
 
+
+
+@st.dialog("欢迎使用数学错题本", width="small")
+def setup_api_key_dialog():
+    st.write("首次使用，请配置您的 DeepSeek API Key。该信息仅保存在本地。")
+    with st.form("api_key_form"):
+        key = st.text_input("DeepSeek API Key", type="password", placeholder="sk-...")
+        submitted = st.form_submit_button("保存并开始使用", type="primary")
+        if submitted:
+            key = key.strip()
+            if not key:
+                st.error("API Key 不能为空。")
+                return
+            if "\r" in key or "\n" in key:
+                st.error("API Key 必须为单行。")
+                return
+            try:
+                ENV_FILE.parent.mkdir(parents=True, exist_ok=True)
+                saved, _, _ = set_key(ENV_FILE, "DEEPSEEK_API_KEY", key)
+                if not saved:
+                    raise OSError("配置文件写入失败")
+            except OSError as exc:
+                st.error(f"保存配置失败：{exc}")
+                return
+            os.environ["DEEPSEEK_API_KEY"] = key
+            st.rerun()
 
 def upload(store: Store):
     st.title("录入错题")
@@ -358,10 +387,12 @@ def batch_details(store: Store, batch_id: str):
                     st.warning(message)
         if not exercises and not active:
             st.write("这次还没有生成练习。")
-        category_study(store, batch, questions, active)
+        mastered = store.mastered_categories(batch.id)
+        category_study(store, batch, questions, mastered)
+        record_chat(store, batch, questions, mastered, active)
 
 
-def category_study(store: Store, batch: Batch, questions: list[Question], active: bool):
+def category_study(store: Store, batch: Batch, questions: list[Question], mastered: set[str]):
     categories: dict[str, list[Question]] = {}
     for question in questions:
         if not needs_figure(question):
@@ -370,15 +401,19 @@ def category_study(store: Store, batch: Batch, questions: list[Question], active
         return
     st.divider()
     st.subheader("分类复习")
-    mastered = store.mastered_categories(batch.id)
     st.caption(f"已解决 {len(mastered.intersection(categories))} / {len(categories)} 类")
     category = st.selectbox("选择知识点类别", list(categories), key=f"study-category-{batch.id}",
                             format_func=lambda name: f"{name} · {'已解决' if name in mastered else '未解决'}")
     members = categories[category]
     solved = category in mastered
-    if st.button("标记此类为未解决" if solved else "标记此类为已解决", key=f"mastered-{batch.id}-{category}"):
-        store.set_category_mastered(batch.id, category, not solved)
-        st.rerun()
+    if st.button("标记此类为未解决" if solved else "标记此类为已解决",
+                 key=f"mastered-{batch.id}-{category}"):
+        try:
+            store.set_category_mastered(batch.id, category, not solved)
+        except ERRORS as exc:
+            st.error(str(exc))
+        else:
+            st.rerun()
     with st.expander(f"此类原题和练习（{len(members)} 道原题）"):
         for index, question in enumerate(members, 1):
             st.markdown(f"**原题 {index}**  {escape_markdown(question.original.statement)}")
@@ -388,25 +423,58 @@ def category_study(store: Store, batch: Batch, questions: list[Question], active
                 st.markdown(f"练习 {index}.{number}  {escape_markdown(exercise.statement)}")
                 for option_index, option in enumerate(exercise.options):
                     st.markdown(f"{chr(65 + option_index)}. {escape_markdown(option)}")
+
+
+def record_chat(store: Store, batch: Batch, questions: list[Question], mastered: set[str], active: bool):
+    members = [question for question in questions if not needs_figure(question)]
+    if not members:
+        return
+    categories = list(dict.fromkeys(question.category for question in members if not question.original.uncertainty))
+    practice = None
+    st.divider()
     with st.container(border=True):
-        st.markdown("**AI 对话**")
-        messages = store.category_messages(batch.id, category)
+        st.subheader("整份记录 · AI 对话")
+        messages = store.record_messages(batch.id)
         with st.container(height=280):
-            if not messages:
-                st.caption("可以发来你的解题过程，或告诉 AI 你卡在哪一步。")
+            with st.chat_message("assistant"):
+                st.markdown(RECORD_REVIEW_QUESTION)
             for turn in messages:
                 with st.chat_message(turn["role"]):
                     st.markdown(turn["content"])
-        message = st.chat_input("输入问题或解题过程", max_chars=1500, disabled=active or solved,
-                                key=f"chat-{batch.id}-{category}")
-        eligible = [question for question in members if not question.original.uncertainty]
-        practice = st.button("再出此类练习", disabled=active or solved or not eligible,
-                             key=f"practice-{batch.id}-{category}")
-    if message or practice:
+        message = st.chat_input("说说本次复习的感受，或输入追加要求", max_chars=1500, disabled=active,
+                                key=f"chat-{batch.id}")
+        with st.expander("快捷追加练习"):
+            scope_col, count_col = st.columns([2, 1])
+            scope = scope_col.selectbox("出题范围", ["仅未解决题型", "指定题型", "整份记录"],
+                                       key=f"practice-scope-{batch.id}")
+            count = count_col.number_input("追加题数", min_value=1, max_value=6, value=batch.plan.count,
+                                           key=f"chat-count-{batch.id}")
+            selected = []
+            if scope == "指定题型":
+                selected = st.multiselect("选择题型", categories, key=f"practice-categories-{batch.id}",
+                                          format_func=lambda name: f"{name} · {'已解决' if name in mastered else '未解决'}")
+            style = st.selectbox("练习方式", ["同类练习", "更难的题", "变式练习"], key=f"practice-style-{batch.id}")
+            unresolved_only = scope == "仅未解决题型"
+            available = bool(categories)
+            if unresolved_only and not (set(categories) - mastered):
+                st.caption("当前没有可出题的未解决题型。")
+                available = False
+            elif scope == "指定题型" and not selected:
+                available = False
+            if st.button("追加练习并更新 TeX", disabled=active or not available, key=f"practice-{batch.id}"):
+                request = {
+                    "同类练习": "请追加同类练习。",
+                    "更难的题": "请追加更难的题，增加推理或运算步骤，保留原考点。",
+                    "变式练习": "请追加变式，改变情境、条件或设问方式，避免只换数字。",
+                }[style]
+                target = "、".join(selected) if selected else scope
+                scope_label = target if len(target) <= 250 else f"指定的 {len(selected)} 个题型"
+                message = f"{request} 共 {count} 道。出题范围为{scope_label}。"
+                practice = FollowupPractice(categories=selected, unresolved_only=unresolved_only, count=count,
+                                            difficulty="适度提高" if style == "更难的题" else None)
+    if message:
         try:
-            # Cycle through the category's originals as exercises accumulate.
-            source = min(eligible, key=lambda question: len(question.exercises)) if practice else members[0]
-            store.queue_followup(batch, source, message or "", practice=practice)
+            store.queue_followup(batch, message, practice=practice)
             start_worker(store.path, submitted=True)
         except ERRORS as exc:
             st.error(str(exc))
@@ -430,14 +498,30 @@ def main():
         [data-testid="stDialog"] [role="dialog"] {max-width: 58rem;}
         </style>
     """)
-    store = Store(ROOT / "data" / "mistakes.sqlite3")
-    if store.active_jobs():
+
+    if not os.getenv("DEEPSEEK_API_KEY", "").strip():
+        st.title("数学错题本")
+        st.button("配置 DeepSeek API Key")
+        setup_api_key_dialog()
+        return
+
+    store = Store(DATA_DIR / "mistakes.sqlite3")
+    active_jobs = store.active_jobs()
+    if active_jobs:
         start_worker(store.path)
     if st.session_state.pop("open_history", False):
         st.session_state["navigation"] = "错题记录"
+
     with st.sidebar:
         st.subheader("数学错题本")
         page = st.radio("导航", ["录入错题", "错题记录"], label_visibility="collapsed", key="navigation")
+
+        st.divider()
+        if st.button("修改 API Key", width="stretch", disabled=bool(active_jobs),
+                     help="后台任务结束后可修改。"):
+            setup_api_key_dialog()
+            return
+
     if page == "录入错题":
         upload(store)
     else:

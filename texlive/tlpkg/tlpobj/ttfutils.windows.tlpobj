@@ -1,0 +1,11 @@
+name ttfutils.windows
+category TLCore
+revision 77973
+shortdesc windows files of ttfutils
+containersize 530448
+containerchecksum 854b0f7cfcab09bb128c5a811d854aedfb7cc2d00f4388fd89f56519baca1a4b9d6e7bcb81bce8445c48a6d19500b5cae9f598c6e5d38b2ec23abb3d936e98bf
+binfiles arch=windows size=453
+ bin/windows/ttf2afm.exe
+ bin/windows/ttf2pk.exe
+ bin/windows/ttf2tfm.exe
+ bin/windows/ttfdump.exe

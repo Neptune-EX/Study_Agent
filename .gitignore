@@ -3,3 +3,6 @@
 __pycache__/
 .streamlit/secrets.toml
 data/
+build/
+dist/
+build-exe.log

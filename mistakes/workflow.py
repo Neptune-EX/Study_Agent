@@ -7,14 +7,18 @@ from .debug import debug_context, record
 from .deepseek import DeepSeek, ModelError
 from .inputs import read_pages
 from .latex import render_batch
-from .models import DIFFICULTY_LABELS, MISTAKE_LABELS, Exercise, Original, PracticePlan, TextFragment
+from .models import MISTAKE_LABELS, Exercise, ExerciseIssue, Followup, Original, PracticePlan, TextFragment
 from .selection import Target, printed_number
 from .store import Batch, GenerationJob, Question, Store
-from .verify import substitution
+from .verify import arithmetic_check
 
 Source = tuple[int, str, TextFragment]
 IntakeRecord = tuple[Original, str, list[bytes], list[bytes]]
 FIGURE_REFERENCE = re.compile(r"如图|图中|见图|下图|上图|右图|左图|图示|根据图")
+RECORD_REVIEW_QUESTION = (
+    "这次错题复习得怎么样？要针对未解决的题型继续出题，还是挑几个题型做同类练习？"
+    "也可以告诉我哪部分需要讲解，或者本次先不加题。"
+)
 
 
 def needs_figure(question: Question) -> bool:
@@ -169,21 +173,21 @@ def generate(question: Question, model: DeepSeek, plan: PracticePlan,
              progress: Callable[[str], None], *, state: dict | None = None,
              save: Callable[[dict], None] = lambda state: None,
              conversation: list[dict] | None = None,
-             category_problems: list[Original | Exercise] | None = None) -> list[Exercise]:
+             record_problems: list[Original | Exercise] | None = None) -> list[Exercise]:
     original = question.original
     if original.uncertainty:
         raise ValueError("原题需要核对：" + original.uncertainty)
     state = state or {}
-    if "accepted" in state:
+    if state.get("review_version") == 2 and "accepted" in state:
         return [Exercise.model_validate(item) for item in state["accepted"]]
     feedback = state.get("feedback", "")
-    prior = {problem_signature(item) for item in category_problems or []}
-    for _ in range(3):
+    prior = {problem_signature(item) for item in record_problems or []}
+    for attempt in range(3):
         if "draft" not in state:
-            difficulty = DIFFICULTY_LABELS[original.difficulty or "basic"]
-            progress(f"{difficulty} 正在生成练习 · {original.topic}")
+            _, name = model.practice_model(original)
+            progress(f"{name} 正在出题 · {original.topic}")
             if conversation is not None:
-                previous = [item.model_dump(include={"statement", "options"}) for item in (category_problems or [])[-8:]]
+                previous = [item.model_dump(include={"statement", "options"}) for item in (record_problems or [])[-8:]]
                 exercises = model.practice(original, plan, feedback, conversation=conversation, previous=previous)
             else:
                 exercises = model.practice(original, plan, feedback)
@@ -193,70 +197,133 @@ def generate(question: Question, model: DeepSeek, plan: PracticePlan,
             exercises = [Exercise.model_validate(item) for item in state["draft"]]
         feedback = check_exercises(original, exercises, plan)
         if not feedback and any(problem_signature(item) in prior for item in exercises):
-            feedback = "有练习与该类原题或之前出过的题重复，请换题。"
+            feedback = "有练习与记录中的原题或已出练习重复，请换题。"
         if feedback:
             record("practice.rejected", reason=feedback)
             state = {"feedback": feedback}
             save(state)
             continue
-        checks = [substitution(item) for item in exercises]
-        incorrect = [str(index) for index, check in enumerate(checks, 1) if check is False]
-        if incorrect:
-            feedback = "第 " + "、".join(incorrect) + " 题的答案代入等式不成立。"
-        else:
-            remaining = [
-                {"number": index, **item.model_dump(exclude={"diagram"})}
-                for index, (item, check) in enumerate(zip(exercises, checks), 1) if check is None
-            ]
-            feedback = ""
-            if remaining:
-                progress(f"Flash 正在验算 · {original.topic}")
-                review = model.review(remaining)
-                if not review.accepted:
-                    feedback = "；".join(review.issues) or "答案未通过验算。"
-        if not feedback:
+        checks = [arithmetic_check(item) for item in exercises]
+        remaining = {i: item.model_dump(exclude={"diagram"})
+                     for i, (item, check) in enumerate(zip(exercises, checks), 1) if check is None}
+        issues = [ExerciseIssue(number=i, kind=check[0], reason=check[1])
+                  for i, check in enumerate(checks, 1) if check and check[0] != "pass"]
+        _, name = model.practice_model(original)
+        if remaining:
+            progress(f"{name} 正在验算 · {original.topic}")
+            review = model.review(original, [{"number": i, **item} for i, item in remaining.items()])
+            reviewed = [issue.number for issue in review.issues]
+            if sorted(review.checked) != sorted(remaining) or not set(reviewed) <= set(remaining) or len(set(reviewed)) != len(reviewed):
+                raise ModelError("验算结果未与题号一一对应，已停止导出该组练习。")
+            issues.extend(review.issues)
+        if not issues:
             record("practice.accepted", count=len(exercises))
-            save({"accepted": [item.model_dump() for item in exercises]})
+            save({"review_version": 2, "accepted": [item.model_dump() for item in exercises]})
             return exercises
+        feedback = "；".join(f"第 {issue.number} 题：{issue.reason}" for issue in issues)
         record("practice.rejected", reason=feedback)
-        progress("本轮复核未通过 · " + feedback)
-        state = {"feedback": feedback}
+        if attempt == 2:
+            break
+        progress(f"{name} 正在修正练习 · {original.topic}")
+        corrections = model.repair(original, [
+            {"issue": issue.model_dump(), "exercise": exercises[issue.number - 1].model_dump(exclude={"diagram"})}
+            for issue in issues
+        ]).corrections
+        fixed = {item.number: Exercise(**item.exercise.model_dump()) for item in corrections}
+        if sorted(item.number for item in corrections) != sorted(issue.number for issue in issues):
+            raise ModelError("修正结果未与题号一一对应，已停止导出该组练习。")
+        for issue in issues:
+            index = issue.number - 1
+            old, new = exercises[index], fixed[issue.number]
+            if issue.kind == "answer" and (old.statement != new.statement or old.options != new.options):
+                raise ModelError(f"修正第 {issue.number} 题答案时改变了题干或选项。")
+            if issue.kind == "question" and problem_signature(old) == problem_signature(new):
+                raise ModelError(f"第 {issue.number} 题的题设问题尚未修正。")
+            exercises[index] = new
+        state = {"draft": [item.model_dump() for item in exercises], "feedback": feedback}
         save(state)
     raise ModelError("练习未通过复核。原因：" + feedback)
 
 
 def finish_followup(store: Store, batch: Batch, job: GenerationJob, progress: Callable[[str], None]):
     questions = store.batch_questions(batch.id)
-    question = next((item for item in questions if item.id == job.question_id), None)
-    if question is None or needs_figure(question):
-        raise ValueError("找不到可辅导的文字题。")
-    members = [item for item in questions if item.category == question.category and not needs_figure(item)]
-    conversation = store.category_messages(batch.id, question.category, limit=12)
-    category_problems = [item.original for item in members] + [exercise for item in members for exercise in item.exercises]
+    members = [item for item in questions if not needs_figure(item)]
+    if not members:
+        raise ValueError("这份记录没有可辅导的文字题。")
+    conversation = [
+        {"role": "assistant", "content": RECORD_REVIEW_QUESTION},
+        *store.record_messages(batch.id, limit=12),
+    ]
+    originals = [item.original for item in members]
+    exercises = [exercise for item in members for exercise in item.exercises]
+    followup = job.followup or Followup(mastered=store.mastered_categories(batch.id))
+    mastered = followup.mastered
+    eligible = sorted((item for item in members if not item.original.uncertainty),
+                      key=lambda item: len(item.exercises))
+    eligible_categories = {item.category for item in eligible}
+    practice = followup.practice
     model = DeepSeek()
     for attempt in range(3):
         try:
-            if job.action == "tutor":
+            if job.action == "tutor" and practice is None:
                 progress("AI 正在回复")
-                originals = [item.original for item in members]
-                exercises = [item.model_dump(exclude={"diagram"}) for item in category_problems[-8:]
-                             if isinstance(item, Exercise)]
-                reply = model.tutor(originals, conversation, exercises)
+                recent = [item.model_dump(exclude={"diagram"}) for item in exercises[-8:]]
+                categories = [
+                    {"name": name, "resolved": name in mastered, "can_practice": name in eligible_categories}
+                    for name in dict.fromkeys(item.category for item in members)
+                ]
+                reply = model.tutor(originals, conversation, recent, categories=categories, plan=job.plan)
+                if reply.practice is None:
+                    store.save_tutor_reply(job, reply.reply)
+                    return
+                store.promote_followup(job, followup.model_copy(update={"practice": reply.practice}))
+                practice = reply.practice
+
+            selected = eligible
+            plan = job.plan
+            if practice:
+                if set(practice.categories) - eligible_categories:
+                    store.save_tutor_reply(job, "所选题型不在本次可出题范围内。请选择本次记录中已核对的题型。")
+                    return
+                selected = [
+                    item for item in eligible
+                    if (not practice.categories or item.category in practice.categories)
+                    and (not practice.unresolved_only or item.category not in mastered)
+                ]
+                plan = job.plan.model_copy(update=practice.model_dump(include={"count", "difficulty"}, exclude_none=True))
+            if not selected:
+                reply = ("所选范围内没有可出题的未解决题型。你可以指定其他题型，或先核对原题。"
+                         if practice and practice.unresolved_only else "请先核对记录中的原题，再继续出题。")
                 store.save_tutor_reply(job, reply)
                 return
-            additions = generate(
-                question, model, job.plan, progress, state=store.checkpoint(job.id, question.id),
-                save=lambda state: store.save_checkpoint(job.id, question.id, state), conversation=conversation,
-                category_problems=category_problems,
-            )
-            updated = replace(question, exercises=[*question.exercises, *additions])
-            included = [updated if item.id == updated.id else item for item in questions
-                        if not needs_figure(item) and not item.original.uncertainty]
+
+            representatives = {}
+            for item in selected:
+                representatives.setdefault(item.category, item)
+            sources = list(representatives.values())
+            sources.extend(item for item in selected if item.id != representatives[item.category].id)
+            rounds, extra = divmod(plan.count, len(sources))
+            updated = {}
+            added = []
+            for index, question in enumerate(sources):
+                count = rounds + (index < extra)
+                if not count:
+                    break
+                question_plan = plan.model_copy(update={"count": count})
+                additions = generate(
+                    question, model, question_plan, progress, state=store.checkpoint(job.id, question.id),
+                    save=lambda state: store.save_checkpoint(job.id, question.id, state), conversation=conversation,
+                    record_problems=[*originals, *exercises, *added],
+                )
+                added.extend(additions)
+                updated[question.id] = replace(question, exercises=[*question.exercises, *additions])
+            included = [updated.get(item.id, item) for item in members if item.exercises or not item.original.uncertainty]
             tex = render_batch(included, batch.plan, True).encode("utf-8")
             _, _, warnings = store.batch_result(batch.id)
+            covered = "、".join(dict.fromkeys(item.category for item in updated.values()))
             store.save_batch(
-                batch, batch.plan, [(question, updated.exercises)], tex, warnings, followup=job,
-                reply=f"已追加 {len(additions)} 道同类练习。做完后可以发来你的答案或思路。",
+                batch, batch.plan, [(item, item.exercises) for item in updated.values()], tex, warnings,
+                followup=job, reply=f"已追加 {len(added)} 道同类练习（{covered}），并更新 TeX。可编译新版 PDF。",
             )
             return
         except ModelError as exc:

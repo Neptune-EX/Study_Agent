@@ -1,0 +1,283 @@
+%%
+%% This is file `latex-lab-firstaid-amsbook.ltx',
+%% generated with the docstrip utility.
+%%
+%% The original source files were:
+%%
+%% latex-lab-firstaid.dtx  (with options: `amscls,amsbook')
+%% 
+%% This is a generated file.
+%% 
+%% Copyright 2021-2026 LaTeX Project
+%% 
+%% This file was generated from file(s) of the  `LaTeX-lab Bundle'.
+%% ------------------------------------------------------------------------------------
+%% 
+%% It may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3c
+%% of this license or (at your option) any later version.
+%% The latest version of this license is in
+%%    http://www.latex-project.org/lppl.txt
+%% and version 1.3c or later is part of all distributions of LaTeX
+%% version 2008 or later.
+%% 
+%% This file may only be distributed together with a copy of the LaTeX
+%% `LaTeX-lab Bundle'. You may however distribute the `LaTeX-lab Bundle'
+%% without such generated files.
+%% 
+%% The newest sources can be found below
+%% 
+%%    https://github.com/latex3/latex2e/blob/develop/required/latex-lab
+%% 
+%% Issues may be reported at
+%% 
+%%    https://github.com/latex3/latex2e/issues
+%% 
+%% 
+%% File: latex-lab-firstaid.dtx (C) Copyright 2023-2026 LaTeX Project
+\def\ltlabfirstaiddate{2026-10-26}
+\def\ltlabfirstaidversion{0.86l}
+\ExplSyntaxOn
+  \let \newtheorem      \@kernel@newtheorem
+  \let \newtheoremstyle \@kernel@newtheoremstyle
+  \let \theoremstyle    \@kernel@theoremstyle
+  \let \proof           \@kernel@proof
+  \let \endproof        \@kernel@endproof
+\def\@author{\authors}
+\renewenvironment{abstract}{%
+    \ifx\maketitle\relax
+      \ClassWarning{\@classname}{Abstract~ should~ precede~
+        \protect\maketitle\space in~ AMS~ document~ classes;~ reported}%
+    \fi
+    \global\setbox\abstractbox=\vtop \bgroup
+      \normalfont\Small
+      \list{}{\labelwidth\z@
+        \leftmargin3pc \rightmargin\leftmargin
+        \listparindent\normalparindent \itemindent\z@
+        \parsep\z@ \@plus\p@
+        \let\fullwidthdisplay\relax
+      }%
+      \item[\hskip\labelsep\scshape\abstractname.]%
+  }{%
+    \endlist
+    \par              % <--- added
+    \egroup
+    \ifx\@setabstract\relax \@setabstracta \fi
+  }
+\tl_set:Nn \newtheoremstyle@vspace@default {
+  .5\baselineskip \@plus  .2\baselineskip \@minus .2\baselineskip
+}
+\EditInstance{block}{thm-plain-1}
+  { begin-vspace =  \newtheoremstyle@vspace@default }
+\DeclareInstanceCopy{block}{thm-plain-2}{thm-plain-1}
+\EditInstance{block}{thm-remark-1}
+  { begin-vspace =  \newtheoremstyle@vspace@default }
+\DeclareInstanceCopy{block}{thm-remark-2}{thm-remark-1}
+\EditInstance{block}{thm-definition-1}
+  { begin-vspace =  \newtheoremstyle@vspace@default }
+\DeclareInstanceCopy{block}{thm-definition-2}{thm-definition-1}
+\EditInstance{thmstyle}{plain}
+  { before-hspace =  \parindent , caption-decls = \scshape }
+\EditInstance{thmstyle}{remark}
+  { before-hspace =  \parindent , caption-decls = \scshape }
+\EditInstance{thmstyle}{definition}
+  { before-hspace =  \parindent , caption-decls = \scshape }
+\DeclareDocumentCommand \part {s ={shorttitle}o m}
+    { \ParseLaTeXeHeading {part} {#1} {#2} {#3} }
+\DeclareDocumentCommand \chapter {s ={shorttitle}O{} m}
+  {
+    \IfBooleanTF{#1}
+      { \ParseLaTeXeHeading {chapter*} {#1} {#2} {#3} }
+      { \ParseLaTeXeHeading {chapter}  {#1} {#2} {#3} }
+  }
+\DeclareDocumentCommand \section {s ={shorttitle}o m}
+  { \ParseLaTeXeHeading {section} {#1} {#2} {#3} }
+\DeclareDocumentCommand \specialsection {s ={shorttitle}o m}
+  { \ParseLaTeXeHeading {specialsection} {#1} {#2} {#3} }
+\DeclareDocumentCommand \subsection {s ={shorttitle}o m}
+  { \ParseLaTeXeHeading {subsection} {#1} {#2} {#3} }
+\DeclareDocumentCommand \subsubsection {s ={shorttitle}o m}
+  { \ParseLaTeXeHeading {subsubsection} {#1} {#2} {#3} }
+\DeclareDocumentCommand \paragraph {s ={shorttitle}o m}
+  { \ParseLaTeXeHeading {paragraph} {#1} {#2} {#3} }
+\DeclareDocumentCommand \subparagraph {s ={shorttitle}o m}
+  { \ParseLaTeXeHeading {subparagraph} {#1} {#2} {#3} }
+\DeclareInstance{heading}{part}{display}
+  {
+    , name                  = part
+    , level                 = -1
+    , placement             = page
+    , placement-start-code  =  \cleardoublepage \thispagestyle{empty}
+                               \null \vfil \markboth{}{}
+    , placement-end-code    = \vfil \vfil \newpage \thispagestyle{empty}
+    , mark-cmd              = \partmark {#1}
+    , heading-decls         = \centering\fontsize{\@xviipt}{22}\bfseries
+    , headformat-instance   = part
+    , text                  = \partname
+    , number-format         = #1
+    , title-decls           = \fontsize{\@xxpt}{25}\bfseries
+  }
+\DeclareInstance{heading}{chapter}{display}
+  {
+    , name                 = chapter
+    , level                = 0
+    , mark-cmd             = \chaptermark {#1}
+    , para-indent          = true
+    , placement            = top
+    , after-penalty-vspace = 42pt  % 32pt plus \topskip
+    , after-vspace         = 22pt
+    , heading-decls        = \normalsize\mdseries\centering
+    , headformat-instance  = chapter
+    , text                 = \MakeUppercase{\chaptername}
+    , number-format        = #1
+    , title-decls          = \fontsize{\@xivpt}{18} \bfseries
+    , contents-extra       = \addtocontents{lof}{\protect\addvspace{10\p@}}
+                             \addtocontents{lot}{\protect\addvspace{10\p@}}
+  }
+\DeclareInstanceCopy{heading}{chapter*}{chapter}
+\EditInstance{heading}{chapter*}{ after-penalty-vspace = 72pt }  % 62pt + \topskip
+\DeclareInstance{headformat}{chapter}{display}
+  {
+    , heading-indent = 0pt
+    , separator-b    = \par \nobreak \vspace{18pt}
+  }
+\DeclareInstance{heading}{section}{display}
+  {
+    , name                = section
+    , level               = 1
+    , mark-cmd            = \sectionmark{#1}
+    , para-indent         = true
+    , before-vspace       = 0.7\linespacing plus \linespacing
+    , after-vspace        = 0.5\linespacing
+    , heading-decls       = \normalfont \bfseries \centering
+    , headformat-instance = section
+    , number-format       = #1.
+    , number-decls        = \upshape
+  }
+\DeclareInstance{headformat}{section}{hang}
+  {
+    separator-b = \hspace{0.5em}
+  }
+\DeclareInstanceCopy{heading}{specialsection}{section}
+\EditInstance{heading}{specialsection}
+   {
+     , before-vspace = 2\linespacing plus \linespacing
+     , heading-decls = \large \scshape \centering
+   }
+\DeclareInstance{heading}{subsection}{runin}
+  {
+    , name                = subsection
+    , level               = 2
+    , mark-cmd            = \subsectionmark{#1}
+    , before-vspace       = 0.5\linespacing plus 0.7\linespacing
+    , after-hspace        = \fontdimen2\font
+    , heading-decls       = \normalfont \bfseries
+    , headformat-instance = subsection
+    , number-format       = #1.
+    , number-decls        = \upshape
+    , title-format        = #1 \AddPunct{.}
+  }
+\DeclareInstance{headformat}{subsection}{runin}
+  {
+    , separator-b    = \hspace{0.5em}
+    , heading-indent = \normalparindent
+  }
+\DeclareInstance{heading}{subsubsection}{runin}
+  {
+    , name                = subsubsection
+    , level               = 3
+    , mark-cmd            = \subsubsectionmark{#1}
+    , before-vspace       = 0pt
+    , after-hspace        = \fontdimen2\font
+    , heading-decls       = \normalfont \itshape
+    , headformat-instance = subsubsection
+    , number-format       = #1.
+    , number-decls        = \upshape
+    , title-format        = #1 \AddPunct{.}
+  }
+\DeclareInstance{headformat}{subsubsection}{runin}
+  {
+    , separator-b    = \hspace{0.5em}
+    , heading-indent = \normalparindent
+  }
+\DeclareInstance{heading}{paragraph}{runin}
+  {
+    , name                = paragraph
+    , level               = 4
+    , mark-cmd            = \paragraphmark{#1}
+    , before-vspace       = 0pt
+    , after-hspace        = \fontdimen2 \font
+    , heading-decls       = \normalfont
+    , headformat-instance = paragraph
+    , number-format       = #1.
+    , number-decls        = \upshape
+    , title-format        = #1 \AddPunct{.}
+  }
+\DeclareInstance{headformat}{paragraph}{runin}
+  {
+    , separator-b    = \hspace{0.5em}
+    , heading-indent = \normalparindent
+  }
+\DeclareInstance{heading}{subparagraph}{runin}
+  {
+    , name                = subparagraph
+    , level               = 5
+    , mark-cmd            = \subparagraphmark{#1}
+    , before-vspace       = 0pt
+    , after-hspace        = \fontdimen2\font
+    , heading-decls       = \normalfont
+    , headformat-instance = subparagraph
+    , number-format       = #1.
+    , number-decls        = \upshape
+    , title-format        = #1 \AddPunct{.}
+  }
+\DeclareInstance{headformat}{subparagraph}{runin}
+  {
+    , separator-b = \hspace{0.5em}
+  }
+\def\partmark#1{%
+  \markboth{}{}
+}
+\def\chaptermark#1{%
+  \markboth {\MakeUppercase{%
+      \ifnum \c@secnumdepth >\m@ne
+        \thechapter. \ %
+      \fi
+      #1}}{}
+}
+\def\sectionmark#1{%
+      \markright {\MakeUppercase{%
+        \ifnum \c@secnumdepth >\z@
+          \thesection. \ %
+        \fi
+        #1}}
+}
+\def\@starttoc#1#2{%
+  \begingroup
+  \setTrue{#1}%
+  \ifx\contentsname#2%
+    \chapter[unnumbered,toc=]{\contentsname}%
+  \else
+    \chapter[=,unnumbered]{#2}%
+  \fi
+  \typeout{#2}%
+  \makeatletter
+  \@input{\jobname.#1}%
+  \if@filesw
+    \@xp\newwrite\csname tf@#1\endcsname
+    \immediate\@xp\openout\csname tf@#1\endcsname \jobname.#1\relax
+  \fi
+  \global\@nobreakfalse
+  \endgroup
+  \newpage
+  }
+\AddToHook{begindocument}{
+  \@namedef{r@tocindent-1}{1em}
+  \@namedef{r@tocindent0}{1em}
+  \@namedef{r@tocindent1}{1em}
+}
+\ExplSyntaxOff
+
+\endinput
+%%
+%% End of file `latex-lab-firstaid-amsbook.ltx'.

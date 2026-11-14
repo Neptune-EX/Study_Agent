@@ -1,0 +1,22 @@
+%%
+%% This is file `tagpdf-ns-latex-lab-book.def',
+%% generated with the docstrip utility.
+%%
+%% The original source files were:
+%%
+%% latex-lab-namespace.dtx  (with options: `ns-latex-lab-book')
+%% 
+%% File: latex-lab-namespace.dtx
+%%
+%% \ProvidesExplFile {tagpdf-ns-latex-lab-book.def} {2026-08-21} {1.0e}
+%% {latex-book} {https://www.latex-project.org/ns/book}{}
+chapter,        Sect,pdf2,
+chapter-heading,       H1,pdf2,
+section-heading,       H2,pdf2,
+subsection-heading,    H3,pdf2,
+subsubsection-heading, H4,pdf2,
+paragraph-heading,     H5,pdf2,
+subparagraph-heading,  H6,pdf2,
+%% 
+%%
+%% End of file `tagpdf-ns-latex-lab-book.def'.

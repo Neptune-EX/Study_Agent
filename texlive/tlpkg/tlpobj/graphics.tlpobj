@@ -1,0 +1,45 @@
+name graphics
+category Package
+revision 80868
+catalogue latex-graphics
+shortdesc The LaTeX standard graphics bundle
+longdesc This is a collection of LaTeX packages for: producing colour
+longdesc including graphics (eg PostScript) files rotation and scaling
+longdesc of text in LaTeX documents. It comprises the packages color,
+longdesc graphics, graphicx, trig, epsfig, keyval, and lscape.
+depend epstopdf-pkg
+depend graphics-cfg
+depend graphics-def
+containersize 16052
+containerchecksum 53c99e66f919de66df458f221f1e571c4cdd364dc8d9080affad641c1533cccaba05de924981b371a3436ca0bcc440db24cb65ae8cbadfc9c71280db94ca9d45
+doccontainersize 2477600
+doccontainerchecksum 4be05f5b4067f6c0bc92f46c25b7a7b0bb7e0d587ff9bddbd1dd8a302888a0f3c749385bf9f9795de2c72db23be6258da6102c9dbeb45927232b4ad113b85490
+srccontainersize 57608
+srccontainerchecksum f3afc6f48a3f37aa69669b58101e3bcbf8360c494e45346c3ddd7d21766fbdeeaffb5891b4d0e71e2ad1fae36290650a1e84da619ed362b90798dbe370a59d69
+runfiles size=36
+ texmf-dist/tex/latex/graphics/color.sty
+ texmf-dist/tex/latex/graphics/dvipdf.def
+ texmf-dist/tex/latex/graphics/dvipsnam.def
+ texmf-dist/tex/latex/graphics/dvipsone.def
+ texmf-dist/tex/latex/graphics/dviwin.def
+ texmf-dist/tex/latex/graphics/emtex.def
+ texmf-dist/tex/latex/graphics/epsfig.sty
+ texmf-dist/tex/latex/graphics/graphics-2017-06-25.sty
+ texmf-dist/tex/latex/graphics/graphics.sty
+ texmf-dist/tex/latex/graphics/graphicx.sty
+ texmf-dist/tex/latex/graphics/keyval.sty
+ texmf-dist/tex/latex/graphics/lscape.sty
+ texmf-dist/tex/latex/graphics/mathcolor.ltx
+ texmf-dist/tex/latex/graphics/pctex32.def
+ texmf-dist/tex/latex/graphics/pctexhp.def
+ texmf-dist/tex/latex/graphics/pctexps.def
+ texmf-dist/tex/latex/graphics/pctexwin.def
+ texmf-dist/tex/latex/graphics/rotating.sty
+ texmf-dist/tex/latex/graphics/tcidvi.def
+ texmf-dist/tex/latex/graphics/trig.sty
+ texmf-dist/tex/latex/graphics/truetex.def
+catalogue-contact-bugs https://www.latex-project.org/bugs/
+catalogue-contact-home https://www.latex-project.org/
+catalogue-ctan /macros/latex/required/graphics
+catalogue-license lppl1.3c
+catalogue-topics collection graphics

@@ -1,0 +1,24 @@
+name hopatch
+category Package
+revision 81103
+shortdesc Load patches for packages
+longdesc Hopatch provides a command with which the user may register of
+longdesc patch code for a particular package. Hopatch will apply the
+longdesc patch immediately, if the relevant package has already been
+longdesc loaded; otherwise it will store the patch until the package
+longdesc appears.
+containersize 2208
+containerchecksum 32b82321d0ba393c30b19a78be197d0fb20d63a7728d8ce1f6f04b0582020f93e003b853eb29448def95fe74a5c69240245ee18c02dc700472519c90f1a0583e
+doccontainersize 320292
+doccontainerchecksum b6b9d5577836dcd1cca6b538eef171f1430faf4528d6b8d1042cb7360d1f45ddd2c5b4733b4639f044cc4e351eed00f57c8e437f4a1b9f6a27eede0db7274711
+srccontainersize 6188
+srccontainerchecksum 12c25af3909e01660f62eee063f721369502e3897244c4dc44ab33988dd0802e64a801f7374f2cab7664a165fdd19bb1703971b908d70af18e0967ab280187a9
+runfiles size=3
+ texmf-dist/tex/latex/hopatch/hopatch-2016-05-16.sty
+ texmf-dist/tex/latex/hopatch/hopatch.sty
+catalogue-contact-bugs https://github.com/LaTeX-Package-Repositories/hopatch/issues
+catalogue-contact-repository https://github.com/LaTeX-Package-Repositories/hopatch
+catalogue-ctan /macros/latex/contrib/hopatch
+catalogue-license lppl1.3
+catalogue-topics macro-supp
+catalogue-version 1.5a

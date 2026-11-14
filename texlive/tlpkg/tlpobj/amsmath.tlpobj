@@ -1,0 +1,38 @@
+name amsmath
+category Package
+revision 80868
+catalogue latex-amsmath
+shortdesc AMS mathematical facilities for LaTeX
+longdesc The package provides the principal packages in the AMS-LaTeX
+longdesc distribution. It adapts for use in LaTeX most of the
+longdesc mathematical features found in AMS-TeX; it is highly
+longdesc recommended as an adjunct to serious mathematical typesetting
+longdesc in LaTeX. When amsmath is loaded, AMS-LaTeX packages amsbsy
+longdesc (for bold symbols), amsopn (for operator names) and amstext
+longdesc (for text embedded in mathematics) are also loaded. amsmath is
+longdesc part of the LaTeX required distribution; however, several
+longdesc contributed packages add still further to its appeal; examples
+longdesc are empheq, which provides functions for decorating and
+longdesc highlighting mathematics, and ntheorem, for specifying theorem
+longdesc (and similar) definitions.
+containersize 31748
+containerchecksum e86ea09fbde28557ee62aa7efe9153850591bda991f94b2eb8544e15a61d1bc6f995323f621cc35a80eb300bc03c6b265fba0b76844c932a7d96109c8d7a7ae4
+doccontainersize 2388448
+doccontainerchecksum 7682b7cdb2eb5d9855375ba50df13fee868e2acbec12caf91305c12b3860c79166c2ece4fc7eef42bec07b600af10f968841834c66f2ce61511eed2cca74dbbd
+srccontainersize 67300
+srccontainerchecksum 7c33cc06e481aeea654bc02c160bb766671621cd04a9c74df8612192a06bc3e7f1838988cac554a29558fe52bf29424e18df05dd57c5cc023ea749456a8b5408
+runfiles size=70
+ texmf-dist/tex/latex/amsmath/amsbsy.sty
+ texmf-dist/tex/latex/amsmath/amscd.sty
+ texmf-dist/tex/latex/amsmath/amsgen.sty
+ texmf-dist/tex/latex/amsmath/amsmath-2018-12-01.sty
+ texmf-dist/tex/latex/amsmath/amsmath.sty
+ texmf-dist/tex/latex/amsmath/amsopn.sty
+ texmf-dist/tex/latex/amsmath/amstex.sty
+ texmf-dist/tex/latex/amsmath/amstext.sty
+ texmf-dist/tex/latex/amsmath/amsxtra.sty
+catalogue-also nath mathtools
+catalogue-contact-home https://www.ams.org/tex/amslatex.html
+catalogue-ctan /macros/latex/required/amsmath
+catalogue-license lppl1.3c
+catalogue-topics maths tagged-pdf-partially

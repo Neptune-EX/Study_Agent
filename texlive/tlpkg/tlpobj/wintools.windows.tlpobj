@@ -1,0 +1,52 @@
+name wintools.windows
+category TLCore
+revision 77973
+shortdesc utilities provided only for Windows
+longdesc Common utilities, mainly from the w32tex distribution.
+postaction filetype name="TL.PSViewer.view"  cmd='"TEXDIR/bin/windows/psviewer.exe" "%1"'
+postaction progid extension=.eps filetype="TL.PSViewer.view"
+postaction progid extension=.ps filetype="TL.PSViewer.view"
+containersize 5910132
+containerchecksum e223f8d037566dc7ae041bf0a5ebaaa1f7f8f8e66d3762bfa87d67ba60bec94ac037517406e50b0d002ed2d825fe2548c8e9a2f592516aca8cbdb370b0c6f803
+doccontainersize 979508
+doccontainerchecksum 961261fd9d4bb0df07eb8c6b1d91981c1d52cf295b39e43b028b394c82f8352debf71e8280ffe5f6f588f6046d68c48f0eef104c3b9bb53888ecdd3469bffe97
+runfiles size=3
+ texmf-dist/scripts/psviewer/psviewer.ps1
+ texmf-dist/scripts/tlaunch/tlaunchmode.pl
+ texmf-dist/web2c/tlaunch.ini
+binfiles arch=windows size=11830
+ bin/windows/aftopl.exe
+ bin/windows/bmeps.exe
+ bin/windows/bmp2png.exe
+ bin/windows/cjpeg.exe
+ bin/windows/djpeg.exe
+ bin/windows/gunzip.exe
+ bin/windows/gzip.exe
+ bin/windows/jbig2.exe
+ bin/windows/pdfattach.exe
+ bin/windows/pdfdetach.exe
+ bin/windows/pdffonts.exe
+ bin/windows/pdfimages.exe
+ bin/windows/pdfinfo.exe
+ bin/windows/pdfseparate.exe
+ bin/windows/pdftocairo.exe
+ bin/windows/pdftohtml.exe
+ bin/windows/pdftoppm.exe
+ bin/windows/pdftops.exe
+ bin/windows/pdftotext.exe
+ bin/windows/pdfunite.exe
+ bin/windows/png22pnm.exe
+ bin/windows/png2bmp.exe
+ bin/windows/psviewer.exe
+ bin/windows/sam2p.exe
+ bin/windows/texview.exe
+ bin/windows/tif22pnm.exe
+ bin/windows/tiff2png.exe
+ bin/windows/tlaunch.exe
+ bin/windows/tlaunchmode.exe
+ bin/windows/todos.exe
+ bin/windows/tomac.exe
+ bin/windows/tounix.exe
+ bin/windows/type1afm.exe
+ bin/windows/unzip.exe
+ bin/windows/zip.exe

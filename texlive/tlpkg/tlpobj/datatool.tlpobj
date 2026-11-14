@@ -1,0 +1,81 @@
+name datatool
+category Package
+revision 80133
+shortdesc Tools to load and manipulate data
+longdesc The tools comprise the packages: datatool-base.sty: the
+longdesc underlying base package used by all the other packages in this
+longdesc bundle; datatool.sty: databases may be created using LaTeX
+longdesc commands or by importing external files; they may be sorted
+longdesc numerically or alphabetically; repetitive operations (such as
+longdesc mail merging) may be performed on each row of a database,
+longdesc subject to conditions to exclude particular rows; commands are
+longdesc provided to examine database elements, and to convert formats
+longdesc (for example, to convert a numeric element to a format
+longdesc compatible with l3fp or the fp package; datapie.sty: a database
+longdesc may be represented as a pie chart; flexible options allow
+longdesc colouring of the chart, and annotation hooks are available;
+longdesc dataplot.sty: a database may be represented as a 2-dimensional
+longdesc scatter or line plot; flexible options control of the plot's
+longdesc overall appearance, and of legends and other extra information;
+longdesc databar.sty: a database may be represented as a bar chart;
+longdesc overall appearance, colouring and annotation are controllable;
+longdesc datagidx.sty: provides a way of indexing or creating
+longdesc glossaries/lists of abbreviations that uses TeX to do the
+longdesc sorting and collating instead of using an external indexing
+longdesc application, such as xindy or makeindex (although you may
+longdesc prefer \printnoidxglossary now provided by the glossaries
+longdesc package); databib.sty: a bibliography may be loaded into a
+longdesc datatool database, and manipulated there before being printed
+longdesc (this permits a LaTeX-based route to printing bibliographies in
+longdesc formats for which no BibTeX style is available, although
+longdesc biblatex is now the better route); and person.sty: provides
+longdesc support for displaying a person's name and pronoun in a
+longdesc document, thus avoiding cumbersome use of he/she, etc. The
+longdesc drawing packages make use of PGF/TikZ for their output.
+longdesc Localisation support needs to be installed separately. See
+longdesc datatool-regions and datatool-english. The bundle supersedes
+longdesc and replaces the author's csvtools bundle.
+depend fp
+depend substr
+depend xfor
+depend xkeyval
+containersize 163460
+containerchecksum 4296e54bccfb8cdc3732653d126f25744f1c1ea22dc1337dcd4d716563bcf9d131d1bc698b09f67508b750ee50e3a1c7b6a00c298241ee00b3cb031c63818fe0
+doccontainersize 15860020
+doccontainerchecksum 2f3b4305a2cdee63073a0e234c75504d78486d84529c484942fe31a35bf4ce2a53495746999c4a93429237dbfb881b1c10c8c312e5a3e219c7070f86a00b88ca
+srccontainersize 259628
+srccontainerchecksum 783ec13a3f8cd854de28da465f15084fff5b0c93c683e56c5488e3dcaa370e35869b65ced46b514fde7067fbf205978220c36f0d7e6b8358776e58c181a8cad9
+runfiles size=419
+ texmf-dist/bibtex/bst/datatool/databib.bst
+ texmf-dist/tex/latex/datatool/databar-2019-09-27.sty
+ texmf-dist/tex/latex/datatool/databar.sty
+ texmf-dist/tex/latex/datatool/databib-2019-09-27.sty
+ texmf-dist/tex/latex/datatool/databib.sty
+ texmf-dist/tex/latex/datatool/datagidx-2019-09-27.sty
+ texmf-dist/tex/latex/datatool/datagidx.sty
+ texmf-dist/tex/latex/datatool/datapie-2019-09-27.sty
+ texmf-dist/tex/latex/datatool/datapie.sty
+ texmf-dist/tex/latex/datatool/dataplot-2019-09-27.sty
+ texmf-dist/tex/latex/datatool/dataplot.sty
+ texmf-dist/tex/latex/datatool/datatool-2019-09-27.sty
+ texmf-dist/tex/latex/datatool/datatool-base-2019-09-27.sty
+ texmf-dist/tex/latex/datatool/datatool-base.sty
+ texmf-dist/tex/latex/datatool/datatool-fp-2019-09-27.sty
+ texmf-dist/tex/latex/datatool/datatool-fp.def
+ texmf-dist/tex/latex/datatool/datatool-fp.sty
+ texmf-dist/tex/latex/datatool/datatool-l3fp.def
+ texmf-dist/tex/latex/datatool/datatool-latin1.ldf
+ texmf-dist/tex/latex/datatool/datatool-lua.def
+ texmf-dist/tex/latex/datatool/datatool-pgfmath-2019-09-27.sty
+ texmf-dist/tex/latex/datatool/datatool-pgfmath.def
+ texmf-dist/tex/latex/datatool/datatool-pgfmath.sty
+ texmf-dist/tex/latex/datatool/datatool-undetermined.ldf
+ texmf-dist/tex/latex/datatool/datatool-utf8.ldf
+ texmf-dist/tex/latex/datatool/datatool.sty
+ texmf-dist/tex/latex/datatool/person-2019-09-27.sty
+ texmf-dist/tex/latex/datatool/person.sty
+catalogue-contact-bugs https://www.dickimaw-books.com/bugtracker.php?category=datatool
+catalogue-ctan /macros/latex/contrib/datatool
+catalogue-license lppl1.3
+catalogue-topics data-disp data-import data-manip
+catalogue-version 3.4.5

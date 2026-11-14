@@ -1,0 +1,33 @@
+name geometry
+category Package
+revision 81087
+shortdesc Flexible and complete interface to document dimensions
+longdesc The package provides an easy and flexible user interface to
+longdesc customize page layout, implementing auto-centering and
+longdesc auto-balancing mechanisms so that the users have only to give
+longdesc the least description for the page layout. For example, if you
+longdesc want to set each margin 2cm without header space, what you need
+longdesc is just \usepackage[margin=2cm,nohead]{geometry}. The package
+longdesc knows about all the standard paper sizes, so that the user need
+longdesc not know what the nominal real dimensions of the paper are,
+longdesc just its standard name (such as a4, letter, etc.). An important
+longdesc feature is the package's ability to communicate the paper size
+longdesc it's set up to the output (whether via DVI \specials or via
+longdesc direct interaction with pdf(La)TeX).
+depend graphics
+depend iftex
+containersize 8992
+containerchecksum a9d0323f2b003e105987cafa62e81533b96aab4153a3562157d9cb929226d7c4310d4f47c49477cee484edc93c8818cff4d8041ef93e8226c3a274638e854847
+doccontainersize 453488
+doccontainerchecksum 3518c47f9208e092ace8814553499ac28f170e7e09e4cbd6f2be08bbce95801ea9f8b18f578c1ca41ce39768f01cdfc388cd307539d38bca5a69193d4cc730d9
+srccontainersize 32664
+srccontainerchecksum a0cb88278a662d54852d87f58b160798a5a7f59ca89deec3eb368f70bb7e72fe13144c5924a9475c8e7a38469b3e35bbc16ab11f6a6c6da854a40b3d19af6a6b
+runfiles size=11
+ texmf-dist/tex/latex/geometry/geometry.sty
+catalogue-also vmargin typearea geometry-de
+catalogue-contact-bugs https://github.com/LaTeX-Package-Repositories/geometry/issues
+catalogue-contact-repository https://github.com/LaTeX-Package-Repositories/geometry
+catalogue-ctan /macros/latex/contrib/geometry
+catalogue-license lppl1.3c
+catalogue-topics geometry tagged-pdf
+catalogue-version 6.1

@@ -1,0 +1,24 @@
+name latex-firstaid-dev
+category Package
+revision 80885
+shortdesc Development pre-release of the LaTeX firstaid package
+longdesc This is a pre-release version of the standard LaTeX firstaid
+longdesc package. It accompanies the pre-testing kernel code
+longdesc (latex-base-dev), and is intended for testing by knowledgeable
+longdesc users.
+containersize 5584
+containerchecksum 3d39e659a99e6e1b2b1ee7ec4357b7db9ca017d9f91a3341312e5f1a8bc50d12c91b5d51d6bf80814e1798ade35aee781d9f5e635074b00b564b36f6599f2ec3
+doccontainersize 298536
+doccontainerchecksum c53d6f9d0b7251e42c396e398586564b068b75aeea7143f60dc0e473bf609ac2e1c52dc3cfb4d63afede1eb20793980558a4d325f67f1295d141d6222226ffc6
+srccontainersize 12852
+srccontainerchecksum a0c368e5915b520ce15642d16d43be8ed90a2fd90e30b6dcc2ce543271fdc532b0f87d47794523957d47a26459a94a1dc322c5f3d69a72fd5d47a975e8711072
+runfiles size=8
+ texmf-dist/tex/latex-dev/firstaid/filehook-ltx.sty
+ texmf-dist/tex/latex-dev/firstaid/latex-firstaid-pkg-cleveref.ltx
+ texmf-dist/tex/latex-dev/firstaid/latex-firstaid-pkg-zref-clever.ltx
+ texmf-dist/tex/latex-dev/firstaid/latex2e-first-aid-for-external-files.ltx
+ texmf-dist/tex/latex-dev/firstaid/underscore-ltx.sty
+catalogue-ctan /macros/latex-dev/required/firstaid
+catalogue-license lppl1.3c
+catalogue-topics bugfix format latex-devel pre-release
+catalogue-version pre-release 0

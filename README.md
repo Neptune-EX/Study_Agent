@@ -21,19 +21,76 @@ notepad .env
 
 打开 <http://127.0.0.1:8501>。
 
+## Windows EXE 打包
+
+在项目根目录打开 PowerShell，确认已安装 Python 3.11 或以上版本，并将完整的 Windows TeX Live 安装目录放在项目的 `texlive` 下。打包脚本会把整个 TeX Live 目录复制到发布目录。
+
+~~~powershell
+if (-not (Test-Path .\.venv\Scripts\python.exe)) { python -m venv .venv }
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Test-Path .\texlive\bin\windows\xelatex.exe
+~~~
+
+最后一条命令返回 `True` 后，在同一个 PowerShell 窗口执行打包。
+
+~~~powershell
+.\build.ps1
+~~~
+
+若 PowerShell 的执行策略拦截脚本，可用 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1` 为本次打包运行脚本。
+
+打包完成后，双击 `dist\MathMistakeBook\MathMistakeBook.exe` 验证启动。发布时请分发整个 `dist\MathMistakeBook` 目录。首次启动时在窗口里填写自己的 DeepSeek API Key。EXE 将配置写入 %LOCALAPPDATA%\MathMistakeBook\.env，数据库写入同目录下的 data。下载 PDF 或 LaTeX 时，在「选择保存位置」对话框中浏览文件夹或粘贴完整路径，也可以修改文件名。需要迁移源码版历史时，完全退出应用后，将旧的 data/mistakes.sqlite3 复制到 EXE 版的 data 目录。
+
+入口启动错误可查看 %LOCALAPPDATA%\MathMistakeBook\desktop.log，后台生成和编译错误可查看 data/mistakes.worker.log。EXE 也支持通过 --server-only 8524 启动本地浏览器调试入口。
+
+## macOS 桌面版打包方案
+
+以下是适配后在 Mac 上执行的步骤。目标产物是可从 Finder 双击打开的 `MathMistakeBook.app`。PyInstaller 需要在 macOS 上运行。Apple 芯片使用 `arm64`，Intel 芯片使用 `x86_64`。要兼容两种 Mac，可以分别打包；单个 `universal2` 版本需要 Python 和随包分发的原生依赖都提供所需的架构。 [PyInstaller 平台说明](https://pyinstaller.org/en/stable/) · [macOS 架构说明](https://pyinstaller.org/en/stable/feature-notes.html#macos-multi-arch-support)
+
+### 需要适配的地方
+
+| 位置 | macOS 需要做的调整 |
+| --- | --- |
+| [MathMistakeBook.spec](MathMistakeBook.spec)、[build.ps1](build.ps1) | 从现有 spec 派生一个 `MathMistakeBook.mac.spec`，保留 `launch.py`、Streamlit 配置、TeX 模板和运行时钩子。在 `COLLECT` 后用 `BUNDLE(coll, name="MathMistakeBook.app", bundle_identifier="…")` 生成窗口应用，填写自己的包标识符。构建命令改在 macOS 终端执行。 [PyInstaller 的 macOS spec 说明](https://pyinstaller.org/en/stable/spec-files.html#spec-file-options-for-a-macos-bundle) |
+| [paths.py](paths.py) | 给打包版的 `APP_HOME` 加 macOS 分支，例如 `~/Library/Application Support/MathMistakeBook/`。将 `.env`、`data/mistakes.sqlite3` 和 `desktop.log` 写到这个可写目录，随包资源继续从 `BUNDLE` 读取。 [Apple 应用数据目录说明](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/MacOSXDirectories/MacOSXDirectories.html) |
+| [paths.py](paths.py) 中的 `find_xelatex()` | macOS 可采用外部 MacTeX。优先读取用户配置的 `XELATEX`，默认检查 `/Library/TeX/texbin/xelatex`，然后查找 `PATH`。Finder 启动时的 `PATH` 与终端不同。目标电脑也需要安装 MacTeX，以提供 XeLaTeX、宏包和中文字体。若要随包提供 PDF 编译环境，则需提供 macOS 版 TeX Live 及其宏包和字体。 [MacTeX](https://tug.org/mactex/) · [PyInstaller 的 Finder 环境说明](https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html#macos) |
+| [launch.py](launch.py)、[mistakes/launcher.py](mistakes/launcher.py)、[mistakes/worker.py](mistakes/worker.py) | 桌面窗口继续用 pywebview，在 Mac 的虚拟环境确认 Cocoa、WebKit 等 PyObjC 依赖能导入并随包收集。后台进程已有 Unix 启动和文件锁分支，需从 Finder 实测 Streamlit 启动、`--worker` 派发和应用退出后的任务处理。 [pywebview 安装说明](https://pywebview.flowrl.com/guide/installation.html#macos) |
+| [mistakes/download.py](mistakes/download.py) | 保存对话框可沿用。把 Windows 路径示例改成 macOS 路径，例如 `~/Downloads`。如需「打开保存目录」，macOS 可用 `open` 打开 Finder。 |
+
+### 适配后的构建与发布
+
+1. 在 Mac 上安装符合目标架构的 Python 3.11 或以上版本，并安装 MacTeX 验证 PDF 编译。在项目根目录用 macOS Python 创建虚拟环境，安装依赖。
+
+   ~~~sh
+   python3 -m venv .venv
+   ./.venv/bin/python -m pip install -r requirements.txt
+   ./.venv/bin/python -c 'import platform; print(platform.machine())'
+   /Library/TeX/texbin/xelatex --version
+   ~~~
+
+2. 完成上述适配并保存 macOS spec 后，在同一目录执行打包。以下命令以 `MathMistakeBook.mac.spec` 为例。
+
+   ~~~sh
+   ./.venv/bin/python -m PyInstaller --clean --noconfirm --distpath dist/macos MathMistakeBook.mac.spec
+   open dist/macos/MathMistakeBook.app
+   ~~~
+
+3. 从 Finder 启动，依次验证首次填写 API Key、上传错题、后台出题、中文 PDF 编译和 TeX 下载。重启后检查配置和错题记录能否读回。使用外部 MacTeX 的版本，发布时应注明目标电脑需要安装 MacTeX。
+4. 向其他用户直接分发时，用 `Developer ID Application` 证书签名并启用 Hardened Runtime，将应用打成 ZIP 或 DMG，提交 Apple 公证。完成后在目标 Mac 上用下载的发行包验证能否打开。 [Apple 打包说明](https://developer.apple.com/documentation/xcode/packaging-mac-software-for-distribution) · [Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
+
 ## 使用
 
 1. 在「录入错题」上传 PNG、JPEG、WebP、GIF 或 PDF。单文件最大 32 MB，GIF 识别首帧。
 2. 在上传对话框选择年级和识别范围。题号可写 2,5-7 或 3:9（第 3 页第 9 题）。也可选择整份文件。需要限制指定题号的 PDF 扫描范围时，填写 1,3-5 等页码。每次最多检查 12 页。可设置练习数、难度和补充要求。
 3. 点击「识别题目与知识点」，可直接修改每题的识别文字、知识点、难度和选择题选项。确认后任务进入后台队列，页面可以关闭。
 4. 确认录入时可为记录命名。在「错题记录」可按名称、文件名、题干或知识点搜索，按年级和上传日期筛选，也可改名、修改题目或删除整次记录。
-5. 在单条记录的「分类复习」中选择录入时归纳的知识点类别。该类原题和练习共用一个 AI 对话栏，可以提问、发解题过程或追加同类练习。对话和解决状态随类别保存。掌握后可标记整类为「已解决」。
-6. TeX 会随记录保存。点击「编译 PDF」即可将原题和累计练习导出，答案与解析在末尾。每次追加练习都会更新 TeX，下一次编译直接使用新版。旧记录可用「用原题和已存练习更新 TeX」补入原题。
+5. 在「分类复习」查看各知识点的原题和练习，并标记为已解决或未解决。下方「整份记录 · AI 对话」会询问本次复习的反馈。可以回复「只按未解决的题型再出 3 道」「给时间换算出 2 道变式」或「这次先不加题」。也可展开「快捷追加练习」，选择仅未解决题型、指定题型或整份记录，设置同类练习、更难的题或变式。追加题数是本次总数，每次 1–6 道。
+6. 追加成功后，系统将新题加入原题和已有练习，更新记录的 TeX。可直接下载新版 LaTeX，或点击「编译 PDF」生成新版 PDF，答案与解析在末尾。旧记录可用「用原题和已存练习更新 TeX」补入原题。
 
 ## 处理流程
 
 - PDF 在本地逐页转成图片。LangChain 调用 DeepSeek Flash 读取印刷题号、题干、作答形式及是否需要读图。系统在整理原题和出题前过滤图形题。
-- Flash 整理原题并判断难度。基础题用 Flash 出题，奥数和压轴题用 Pro。旧记录未分级的题在下次出题时默认用 Flash，可在「修改记录」中改为进阶。程序对可识别的四则运算等式做精确代入检查，其他题由 Flash 一次批量验算。出题最多尝试三轮。
+- Flash 整理原题并判断难度。基础题用 Flash 出题，奥数和压轴题用 Pro。旧记录未分级的题在下次出题时默认用 Flash，可在「修改记录」中改为进阶。可识别的四则等式由程序验算，其余练习由对应模型按题号复核。答案错时修正答案与解析，题设有问题时修正题设，再重新验算。只有通过的练习才会保存。
 - 新讲义将题号、知识点和题干填入原 TeX 模板，保留弹性留白及每三题换页。答案与解析另起一页。
 - 独立后台进程从 SQLite 领取任务并保存已完成的模型步骤。短暂网络错误会自动重试，进程异常退出时可从检查点继续。PDF 编译任务只运行 XeLaTeX。
 - 错题、图形裁片、练习和导出文件保存在 data/mistakes.sqlite3。备份该文件即可保存历史。图片及转录内容在处理时会发送到配置的 DeepSeek API。
@@ -42,4 +99,4 @@ notepad .env
 
 ## 调试与维护
 
-查看中间模型回复、定位复核与编译失败、修改出题和排版规则，见 [调试与维护指南](DEBUG.md)。
+查看中间模型回复、定位复核与编译失败、修改出题和排版规则，见 [调试与维护指南](DEBUG.md)。历次功能变化见 [更新记录](UPDATE.md)。

@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 from threading import Lock
+from paths import BASE, FROZEN
 
 _workers: dict[Path, subprocess.Popen] = {}
 _lock = Lock()
@@ -18,9 +19,13 @@ def start_worker(path: Path, *, submitted: bool = False):
             {"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP}
             if os.name == "nt" else {"start_new_session": True}
         )
+        if FROZEN:
+            command = [sys.executable, "--worker", str(path)]
+            options["env"] = {**os.environ, "PYINSTALLER_RESET_ENVIRONMENT": "1"}
+        else:
+            command = [sys.executable, "-m", "mistakes.worker", str(path)]
         with path.with_suffix(".worker.log").open("a", encoding="utf-8") as log:
             _workers[path] = subprocess.Popen(
-                [sys.executable, "-m", "mistakes.worker", str(path)],
-                cwd=Path(__file__).resolve().parents[1], stdin=subprocess.DEVNULL,
+                command, cwd=BASE, stdin=subprocess.DEVNULL,
                 stdout=log, stderr=subprocess.STDOUT, **options,
             )

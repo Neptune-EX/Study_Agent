@@ -1,0 +1,58 @@
+%%
+%% This is file `tagpdf-ns-latex-lab.def',
+%% generated with the docstrip utility.
+%%
+%% The original source files were:
+%%
+%% latex-lab-namespace.dtx  (with options: `ns-latex-lab')
+%% 
+%% File: latex-lab-namespace.dtx
+%%
+%% \ProvidesExplFile {tagpdf-ns-latex-lab.def} {2023-09-04} {0.8}
+%% {latex} {https://www.latex-project.org/ns/lab/2022}{}
+title-block,  Div,    pdf2,
+title-text,   Title,  pdf2,
+title-author, P,  pdf2,
+title-date,   P,  pdf2,
+part,         Part,     pdf2,
+part-heading, Title,    pdf2,
+section,      Sect,       pdf2,
+subsection,   Sect,       pdf2,
+subsubsection,Sect,       pdf2,
+paragraph,    Sect,       pdf2,
+subparagraph, Sect,       pdf2,
+section-heading,      H1,       pdf2,
+subsection-heading,   H2,       pdf2,
+subsubsection-heading,H3,       pdf2,
+paragraph-heading,    H4,       pdf2,
+subparagraph-heading, H5,       pdf2,
+list,         L,        pdf2,
+itemize,      L,        pdf2,
+enumerate,    L,        pdf2,
+description,  L,        pdf2,
+quote,        BlockQuote,pdf,
+quotation,    BlockQuote,pdf,
+item,         LI,       pdf2,
+itemlabel,    Lbl,      pdf2,
+itembody,     LBody,    pdf2,
+footnote,     FENote,   pdf2,
+footnotemark, Lbl,      pdf2,
+footnotelabel,Lbl,      pdf2,
+semantic-para,Part,     pdf2,
+text-block,   P,        pdf2,
+text-fragment,Span,     pdf2,
+text-parbox,     Div,   pdf2,
+text-minipage,   Div,   pdf2,
+heading-parbox,  Span,  pdf2,
+heading-minipage,Span,  pdf2,
+heading-number, Lbl,    pdf2,
+heading-fragment, Span, pdf2,
+theorem-like, Sect,     pdf2,
+verbatim,     Code,     pdf,
+codeline,     Sub,      pdf2,
+float,        Aside,    pdf2,
+figures,      Sect,     pdf2,
+tables,       Sect,     pdf2,
+%% 
+%%
+%% End of file `tagpdf-ns-latex-lab.def'.

@@ -1,0 +1,41 @@
+name luamml
+category Package
+revision 80875
+shortdesc Automatically generate MathML from LuaLaTeX math mode material
+longdesc LuaMML is an experimental package to automatically generate a
+longdesc MathML representation of mathematical expressions written in
+longdesc LuaLaTeX documents. These MathML representations can be used
+longdesc for improving accessibility or to ease conversion into new
+longdesc output formats like HTML.
+containersize 25728
+containerchecksum fd8778d41be583e21c34906f5e4defdaddbedeae947b7c12b0bae3e5ad9220e095015f29cb66b34f8c971967c81a8e4a302a00b5255caa8e77a866578cba0cac
+doccontainersize 309472
+doccontainerchecksum c75dfd7e4d46e29f872dec6224008a815a8ba9ffbb468ed88f65e8d07db122cff1a76db952a8c94eac2c2ad2b73ae59fc36f8ad29bdca40e9ab84f5bcec1bf3e
+srccontainersize 7992
+srccontainerchecksum 4d0cfdee5362eaa5760a88d64bda556e44cbed756a3da80fd2aa0a6e77b8bf94be66a480a844e0a7eadb4ce1454797a4850ffe6bfc09af9ad005a0ff2097252f
+runfiles size=40
+ texmf-dist/tex/lualatex/luamml/luamml-amsmath.lua
+ texmf-dist/tex/lualatex/luamml/luamml-array.lua
+ texmf-dist/tex/lualatex/luamml/luamml-convert.lua
+ texmf-dist/tex/lualatex/luamml/luamml-data-combining.lua
+ texmf-dist/tex/lualatex/luamml/luamml-data-stretchy.lua
+ texmf-dist/tex/lualatex/luamml/luamml-flattened-mathgroup.lua
+ texmf-dist/tex/lualatex/luamml/luamml-legacy-mappings.lua
+ texmf-dist/tex/lualatex/luamml/luamml-lr.lua
+ texmf-dist/tex/lualatex/luamml/luamml-mathflatten.lua
+ texmf-dist/tex/lualatex/luamml/luamml-patches-amsmath.sty
+ texmf-dist/tex/lualatex/luamml/luamml-patches-kernel.sty
+ texmf-dist/tex/lualatex/luamml/luamml-pdf-escape.lua
+ texmf-dist/tex/lualatex/luamml/luamml-pdf.sty
+ texmf-dist/tex/lualatex/luamml/luamml-structelemwriter.lua
+ texmf-dist/tex/lualatex/luamml/luamml-table.lua
+ texmf-dist/tex/lualatex/luamml/luamml-tex-annotate.lua
+ texmf-dist/tex/lualatex/luamml/luamml-tex.lua
+ texmf-dist/tex/lualatex/luamml/luamml-xmlwriter.lua
+ texmf-dist/tex/lualatex/luamml/luamml.sty
+catalogue-contact-repository https://github.com/latex3/luamml
+catalogue-contact-support https://github.com/latex3/luamml/issues
+catalogue-ctan /macros/luatex/latex/luamml
+catalogue-license lppl1.3c
+catalogue-topics luatex maths tagged-pdf
+catalogue-version 0.9.3

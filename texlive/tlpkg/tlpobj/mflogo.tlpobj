@@ -1,0 +1,22 @@
+name mflogo
+category Package
+revision 79618
+shortdesc LaTeX support for Metafont logo fonts
+longdesc LaTeX package and font definition file to access the Knuthian
+longdesc mflogo fonts described in 'The Metafontbook' and to typeset
+longdesc Metafont logos in LaTeX documents.
+containersize 1592
+containerchecksum 85bf069952c740b2f446d8fc26eae08d219efffd02ccaf01caee9e8b730c7fdb55cd8461ae8b873230dfb3900f298b01f18c260e551cf7184d5847ba0212f314
+doccontainersize 239476
+doccontainerchecksum 0ea2516cda50be1f49f17904c6941ae48e99d33d0834f03a2d414245f7d8d7bcdd879c7a73c4e31caac7179508e80bb15266c658e8adfe07f43b9985c5294899
+srccontainersize 5732
+srccontainerchecksum fa2756b8216ffe57e1493b63a823b08bc8b171c8ef2ac81697f05fb1b6b60f8bd06d2eee20890db6adadff1d24d5af258d875d7d0debb0ddc885a79120ef4bc7
+runfiles size=4
+ texmf-dist/fonts/source/public/mflogo/logosl8.mf
+ texmf-dist/fonts/tfm/public/mflogo/logosl8.tfm
+ texmf-dist/tex/latex/mflogo/mflogo.sty
+ texmf-dist/tex/latex/mflogo/ulogo.fd
+catalogue-ctan /macros/latex/contrib/mflogo
+catalogue-license lppl1
+catalogue-topics font-supp tagged-pdf
+catalogue-version 2.0

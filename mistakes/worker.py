@@ -7,6 +7,7 @@ import sys
 from time import sleep
 
 from dotenv import load_dotenv
+from paths import ENV_FILE
 
 from .debug import debug_run
 from .latex import compile_source
@@ -93,5 +94,5 @@ def process_queue(path: Path):
 
 
 if __name__ == "__main__":
-    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+    load_dotenv(ENV_FILE)
     process_queue(Path(sys.argv[1]))
