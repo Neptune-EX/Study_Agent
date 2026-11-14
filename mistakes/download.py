@@ -2,6 +2,8 @@ import base64
 from html import escape
 import json
 import os
+import sys            # 新增
+import subprocess     # 新增
 from pathlib import Path
 
 import streamlit as st
@@ -72,12 +74,24 @@ def download_file(data: bytes, filename: str, label: str, mime: str):
         key = f"dl-{filename}"
         if st.button(label, width="stretch", key=key):
             export_dialog(data, filename, key)
+        # if saved := st.session_state.get(f"{key}-saved"):
+        #     st.caption(f"已保存：{saved}")
+        #     if os.name == "nt" and st.button("打开保存目录", key=f"{key}-folder"):
+        #         try:
+        #             os.startfile(saved.parent)
+        #         except OSError as exc:
+        #             st.error(f"无法打开目录：{exc}")
         if saved := st.session_state.get(f"{key}-saved"):
             st.caption(f"已保存：{saved}")
-            if os.name == "nt" and st.button("打开保存目录", key=f"{key}-folder"):
+            if st.button("打开保存目录", key=f"{key}-folder"):
                 try:
-                    os.startfile(saved.parent)
-                except OSError as exc:
+                    if sys.platform == "win32":
+                        os.startfile(saved.parent)
+                    elif sys.platform == "darwin":
+                        subprocess.run(["open", str(saved.parent)], check=False)
+                    else:
+                        subprocess.run(["xdg-open", str(saved.parent)], check=False)
+                except Exception as exc:
                     st.error(f"无法打开目录：{exc}")
         return
 
