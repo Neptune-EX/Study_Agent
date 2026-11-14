@@ -63,40 +63,25 @@ if (-not (Test-Path .\.venv\Scripts\python.exe)) { python -m venv .venv }
 
 入口启动错误可查看 %LOCALAPPDATA%\MathMistakeBook\desktop.log，后台生成和编译错误可查看 data/mistakes.worker.log。EXE 也支持通过 --server-only 8524 启动本地浏览器调试入口。
 
-## macOS 桌面版打包方案
+## macOS 桌面版打包
 
-以下是适配后在 Mac 上执行的步骤。目标产物是可从 Finder 双击打开的 `MathMistakeBook.app`。PyInstaller 需要在 macOS 上运行。Apple 芯片使用 `arm64`，Intel 芯片使用 `x86_64`。要兼容两种 Mac，可以分别打包；单个 `universal2` 版本需要 Python 和随包分发的原生依赖都提供所需的架构。 [PyInstaller 平台说明](https://pyinstaller.org/en/stable/) · [macOS 架构说明](https://pyinstaller.org/en/stable/feature-notes.html#macos-multi-arch-support)
+Codemagic 的 `macos-build` 在 Apple 芯片的 Mac 上构建，产物为 `dist/macos/MathMistakeBook-macOS.zip`。解压后从 Finder 打开 `MathMistakeBook.app`。GitHub Actions 的 `Build macOS App` 也使用同一套构建脚本。两条流程都需要仓库包含 [MathMistakeBook.spec](MathMistakeBook.spec)、[构建脚本](scripts/build_macos.sh) 和 [验收脚本](scripts/check_macos_app.py)。
 
-### 需要适配的地方
+- **打包**　Windows 和 Mac 共用 `launch.py` 和 PyInstaller spec，由 spec 在 macOS 上额外生成 `.app`。Mac 的 Python 依赖通过 `requirements.txt` 安装，PyObjC 依赖带有 macOS 平台条件。
+- **PDF 编译**　构建机安装 TeX Live 基础方案并补齐 XeLaTeX、CTeX、TikZ、tcolorbox 和 Fandol 中文字体，跳过宏包文档和源码包。安装树和预生成的 XeLaTeX 格式文件随应用分发。生成的应用可直接使用随包引擎，目标 Mac 无需另外安装 MacTeX。 [TeX Live 安装文档](https://tug.org/texlive/doc/texlive-en/texlive-en.html)
+- **配置、记录和下载**　Mac 打包版将 `.env`、SQLite 和日志写到 `~/Library/Application Support/MathMistakes/`。Windows 打包版使用 `%LOCALAPPDATA%\MathMistakeBook`。两者都支持选择导出目录，Mac 版会用 Finder 打开保存目录。
+- **云端验证**　流程会检查包签名、启动包内服务，并用包内 XeLaTeX 编译文字和图形模板的中文样例。验证使用临时数据库，无需 DeepSeek API Key。签名采用临时签名，用于测试。向其他用户分发前，还需配置 Developer ID 签名和 Apple 公证，并在目标 Mac 上确认 Finder 双击和导出。 [Apple 签名与公证说明](https://developer.apple.com/developer-id/)
 
-| 位置 | macOS 需要做的调整 |
-| --- | --- |
-| [MathMistakeBook.spec](MathMistakeBook.spec)、[build.ps1](build.ps1) | 从现有 spec 派生一个 `MathMistakeBook.mac.spec`，保留 `launch.py`、Streamlit 配置、TeX 模板和运行时钩子。在 `COLLECT` 后用 `BUNDLE(coll, name="MathMistakeBook.app", bundle_identifier="…")` 生成窗口应用，填写自己的包标识符。构建命令改在 macOS 终端执行。 [PyInstaller 的 macOS spec 说明](https://pyinstaller.org/en/stable/spec-files.html#spec-file-options-for-a-macos-bundle) |
-| [paths.py](paths.py) | 给打包版的 `APP_HOME` 加 macOS 分支，例如 `~/Library/Application Support/MathMistakeBook/`。将 `.env`、`data/mistakes.sqlite3` 和 `desktop.log` 写到这个可写目录，随包资源继续从 `BUNDLE` 读取。 [Apple 应用数据目录说明](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/MacOSXDirectories/MacOSXDirectories.html) |
-| [paths.py](paths.py) 中的 `find_xelatex()` | macOS 可采用外部 MacTeX。优先读取用户配置的 `XELATEX`，默认检查 `/Library/TeX/texbin/xelatex`，然后查找 `PATH`。Finder 启动时的 `PATH` 与终端不同。目标电脑也需要安装 MacTeX，以提供 XeLaTeX、宏包和中文字体。若要随包提供 PDF 编译环境，则需提供 macOS 版 TeX Live 及其宏包和字体。 [MacTeX](https://tug.org/mactex/) · [PyInstaller 的 Finder 环境说明](https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html#macos) |
-| [launch.py](launch.py)、[mistakes/launcher.py](mistakes/launcher.py)、[mistakes/worker.py](mistakes/worker.py) | 桌面窗口继续用 pywebview，在 Mac 的虚拟环境确认 Cocoa、WebKit 等 PyObjC 依赖能导入并随包收集。后台进程已有 Unix 启动和文件锁分支，需从 Finder 实测 Streamlit 启动、`--worker` 派发和应用退出后的任务处理。 [pywebview 安装说明](https://pywebview.flowrl.com/guide/installation.html#macos) |
-| [mistakes/download.py](mistakes/download.py) | 保存对话框可沿用。把 Windows 路径示例改成 macOS 路径，例如 `~/Downloads`。如需「打开保存目录」，macOS 可用 `open` 打开 Finder。 |
+在 Mac 本地复现时，从项目根目录运行：
 
-### 适配后的构建与发布
+~~~sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+PYTHON_BIN=.venv/bin/python bash scripts/build_macos.sh
+open dist/macos/MathMistakeBook.app
+~~~
 
-1. 在 Mac 上安装符合目标架构的 Python 3.11 或以上版本，并安装 MacTeX 验证 PDF 编译。在项目根目录用 macOS Python 创建虚拟环境，安装依赖。
-
-   ~~~sh
-   python3 -m venv .venv
-   ./.venv/bin/python -m pip install -r requirements.txt
-   ./.venv/bin/python -c 'import platform; print(platform.machine())'
-   /Library/TeX/texbin/xelatex --version
-   ~~~
-
-2. 完成上述适配并保存 macOS spec 后，在同一目录执行打包。以下命令以 `MathMistakeBook.mac.spec` 为例。
-
-   ~~~sh
-   ./.venv/bin/python -m PyInstaller --clean --noconfirm --distpath dist/macos MathMistakeBook.mac.spec
-   open dist/macos/MathMistakeBook.app
-   ~~~
-
-3. 从 Finder 启动，依次验证首次填写 API Key、上传错题、后台出题、中文 PDF 编译和 TeX 下载。重启后检查配置和错题记录能否读回。使用外部 MacTeX 的版本，发布时应注明目标电脑需要安装 MacTeX。
-4. 向其他用户直接分发时，用 `Developer ID Application` 证书签名并启用 Hardened Runtime，将应用打成 ZIP 或 DMG，提交 Apple 公证。完成后在目标 Mac 上用下载的发行包验证能否打开。 [Apple 打包说明](https://developer.apple.com/documentation/xcode/packaging-mac-software-for-distribution) · [Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
+使用外部 TeX Live 时，可在相应的 `.env` 设置 `XELATEX` 为完整路径。未指定时优先使用随包的 XeLaTeX，再查找 `/Library/TeX/texbin/xelatex` 或 `PATH`。
 
 ## 使用
 

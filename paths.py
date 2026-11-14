@@ -1,56 +1,44 @@
-import sys
 import os
 import shutil
+import sys
 from pathlib import Path
 
-# 统一在这里定义 FROZEN，供其他地方导入使用
 FROZEN = getattr(sys, "frozen", False)
+BUNDLE = Path(sys._MEIPASS) if FROZEN else Path(__file__).resolve().parent
+BASE = Path(sys.executable).parent if FROZEN else BUNDLE
 
-if FROZEN:
-    # Windows: EXE 同级目录
-    if sys.platform == "win32":
-        BASE = Path(sys.executable).parent
-    # macOS: 统一放到 ~/Library/Application Support/MathMistakes
-    elif sys.platform == "darwin":
-        BASE = Path.home() / "Library" / "Application Support" / "MathMistakes"
-        # 首次在 Mac 上运行时，确保该目录存在
-        BASE.mkdir(parents=True, exist_ok=True)
-    else:
-        BASE = Path(sys.executable).parent
-    BUNDLE = Path(sys._MEIPASS)
+if FROZEN and sys.platform == "win32":
+    APP_HOME = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local") / "MathMistakeBook"
+elif FROZEN and sys.platform == "darwin":
+    APP_HOME = Path.home() / "Library" / "Application Support" / "MathMistakes"
 else:
-    BASE = Path(__file__).resolve().parent
-    BUNDLE = BASE
+    APP_HOME = BASE
 
-ROOT = BASE
-DATA_DIR = ROOT / "data"
-ENV_FILE = ROOT / ".env"
+DATA_DIR = APP_HOME / "data"
+ENV_FILE = APP_HOME / ".env"
 
 
 def find_xelatex() -> str:
     configured = os.getenv("XELATEX", "").strip()
     if configured and configured != "xelatex":
         candidate = Path(configured).expanduser()
-        if not candidate.is_absolute() and (ENV_FILE.parent / candidate).is_file():
-            return str(ENV_FILE.parent / candidate)
-        if executable := shutil.which(configured):
+        if executable := shutil.which(str(ENV_FILE.parent / candidate)) or shutil.which(str(candidate)):
             return executable
         raise FileNotFoundError("找不到 .env 中 XELATEX 指定的程序，请检查路径。")
 
-    # 优先查找随应用分发的便携版 TeX Live
-    for root in (BASE, BUNDLE):
-        # 检查 Windows 版本
-        portable_win = root / "texlive" / "bin" / "windows" / "xelatex.exe"
-        if portable_win.is_file():
-            return str(portable_win)
-        
-        # 检查 macOS 版本
-        portable_mac = root / "texlive" / "bin" / "universal-darwin" / "xelatex"
-        if portable_mac.is_file():
-            return str(portable_mac)
-
-    # 如果都没找到，最后尝试系统 PATH（比如用户自己安装了 MacTeX）
+    if sys.platform == "win32":
+        candidates = [root / "texlive/bin/windows/xelatex.exe" for root in (BASE, BUNDLE)]
+    elif sys.platform == "darwin":
+        resources = BASE.parent / "Resources" if FROZEN else BUNDLE
+        candidates = [
+            resources / "texlive/bin/universal-darwin/xelatex",
+            Path("/Library/TeX/texbin/xelatex"),
+        ]
+    else:
+        candidates = []
+    for candidate in candidates:
+        if executable := shutil.which(str(candidate)):
+            return executable
     if executable := shutil.which("xelatex"):
         return executable
-    
     raise FileNotFoundError("找不到 XeLaTeX，请保留发布目录中的 texlive，或把 XeLaTeX 加入 PATH。")

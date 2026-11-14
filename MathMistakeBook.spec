@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path
+import sys
 
 from PyInstaller.utils.hooks import collect_all, collect_submodules, copy_metadata
 
@@ -47,3 +48,5 @@ a = Analysis(
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="MathMistakeBook", console=False, upx=False)
 coll = COLLECT(exe, a.binaries, a.datas, name="MathMistakeBook", upx=False)
+if sys.platform == "darwin":
+    app = BUNDLE(coll, name="MathMistakeBook.app", bundle_identifier="org.mathmistakebook.desktop")

@@ -2,9 +2,9 @@ import base64
 from html import escape
 import json
 import os
-import sys            # 新增
-import subprocess     # 新增
 from pathlib import Path
+import subprocess
+import sys
 
 import streamlit as st
 
@@ -27,8 +27,9 @@ def export_dialog(data: bytes, filename: str, key: str):
     if not initial.is_dir():
         initial = Path.home()
     directory_key = f"{key}-directory"
+    example = r"D:\学习资料" if sys.platform == "win32" else "~/Downloads"
     directory_text = st.text_input("保存文件夹", value=str(initial), key=directory_key,
-                                   help=r"可以粘贴资源管理器地址栏中的完整路径，例如 D:\学习资料。")
+                                   help=f"可以粘贴文件夹路径，例如 {example}。")
     directory = Path(directory_text.strip().strip('"')).expanduser()
     if directory.is_absolute() and directory.is_dir():
         try:
@@ -74,13 +75,6 @@ def download_file(data: bytes, filename: str, label: str, mime: str):
         key = f"dl-{filename}"
         if st.button(label, width="stretch", key=key):
             export_dialog(data, filename, key)
-        # if saved := st.session_state.get(f"{key}-saved"):
-        #     st.caption(f"已保存：{saved}")
-        #     if os.name == "nt" and st.button("打开保存目录", key=f"{key}-folder"):
-        #         try:
-        #             os.startfile(saved.parent)
-        #         except OSError as exc:
-        #             st.error(f"无法打开目录：{exc}")
         if saved := st.session_state.get(f"{key}-saved"):
             st.caption(f"已保存：{saved}")
             if st.button("打开保存目录", key=f"{key}-folder"):
@@ -88,10 +82,10 @@ def download_file(data: bytes, filename: str, label: str, mime: str):
                     if sys.platform == "win32":
                         os.startfile(saved.parent)
                     elif sys.platform == "darwin":
-                        subprocess.run(["open", str(saved.parent)], check=False)
+                        subprocess.run(["/usr/bin/open", str(saved.parent)], check=True)
                     else:
-                        subprocess.run(["xdg-open", str(saved.parent)], check=False)
-                except Exception as exc:
+                        subprocess.run(["xdg-open", str(saved.parent)], check=True)
+                except (OSError, subprocess.CalledProcessError) as exc:
                     st.error(f"无法打开目录：{exc}")
         return
 

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -194,11 +195,16 @@ def compile_source(tex: bytes) -> bytes:
                 import ctypes
 
                 ctypes.windll.kernel32.SetDllDirectoryW(None)
+            env = None
+            if sys.platform == "darwin":
+                # XeLaTeX also needs to find xdvipdfmx when launched from Finder.
+                tex_bin = str(Path(executable).resolve().parent)
+                env = {**os.environ, "PATH": tex_bin + os.pathsep + os.environ.get("PATH", os.defpath)}
             result = subprocess.run(
                 [executable, "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error",
                  "-file-line-error", "worksheet.tex"],
                 cwd=directory, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                timeout=90, check=False,
+                timeout=90, check=False, env=env,
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
             )
         except subprocess.TimeoutExpired as exc:
