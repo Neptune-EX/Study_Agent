@@ -24,8 +24,10 @@ PATH="$tex_bin:$PATH" "$tex_bin/tlmgr" install \
 
 # An explicit fontset in a document can override this bundled default.
 mkdir -p "$tex/texmf-config/tex/latex/ctex"
-printf '%s\n' '\ctex_set:nn { option } { fontset = fandol }' \
-    > "$tex/texmf-config/tex/latex/ctex/ctexopts.cfg"
+cat > "$tex/texmf-config/tex/latex/ctex/ctexopts.cfg" <<'EOF'
+\ProvidesExplFile{ctexopts.cfg}{}{}{MathMistakeBook bundled font defaults}
+\ctex_set:nn { option } { fontset = fandol }
+EOF
 PATH="$tex_bin:$PATH" "$tex_bin/mktexlsr"
 PATH="$tex_bin:$PATH" "$tex_bin/fmtutil-sys" --byfmt xelatex
 du -sh "$tex"
