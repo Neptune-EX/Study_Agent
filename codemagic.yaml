@@ -1,0 +1,80 @@
+﻿workflows:
+  macos-build:
+    name: Build macOS App with Bundled TeX
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      python: 3.13
+    scripts:
+      - name: Install Python dependencies
+        script: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install BasicTeX and required packages
+        script: |
+          # 1. 通过 Homebrew 安装 BasicTeX[reference:1]
+          brew install --cask basictex
+          
+          # 2. 刷新 PATH，使 xelatex 和 tlmgr 命令生效
+          eval "$(/usr/libexec/path_helper -s)"
+          
+          # 3. 安装项目 LaTeX 模板所需的宏包
+          sudo tlmgr update --self
+          sudo tlmgr install pdfcol tcolorbox tikz pgf fancyhdr pifont datatool pgffor eso-pic tikzpagenodes geometry xcolor graphics calc ctex xecjk fandol
+
+      - name: Prepare portable TeX directory
+        script: |
+          # 创建项目内的 texlive 目录，结构与 paths.py 中的查找逻辑对应
+          mkdir -p texlive/bin/universal-darwin
+          
+          # 将系统安装的 BasicTeX 可执行文件复制过来
+          # BasicTeX 通常安装在 /usr/local/texlive/*basic/bin/universal-darwin/
+          cp /usr/local/texlive/*basic/bin/universal-darwin/xelatex texlive/bin/universal-darwin/
+          
+          # 复制 tlmgr 和其他必要的支持文件（texmf-dist 等）
+          # 为了减小体积，只复制 xelatex 运行所必需的部分
+          # BasicTeX 的 texmf-dist 通常位于 /usr/local/texlive/*basic/texmf-dist
+          cp -R /usr/local/texlive/*basic/texmf-dist texlive/
+          
+          # 验证文件已就位
+          ls -la texlive/bin/universal-darwin/
+
+      - name: Generate collect_deps.py
+        script: |
+          cat << 'EOF' > collect_deps.py
+          from mistakes import debug, deepseek, download, inputs, latex, launcher, models, selection, store, workflow, worker
+          import langchain_openai
+          import openai
+          import pydantic
+          import pymupdf
+          import PIL
+          import pandas
+          import altair
+          import jinja2
+          EOF
+
+      - name: Build with PyInstaller
+        script: |
+          # 关键：使用 --add-data "texlive:texlive" 将便携版 TeX 打包进 .app
+          pyinstaller collect_deps.py \
+            --name "MathMistakeBook" \
+            --windowed \
+            --onedir \
+            --noconfirm \
+            --add-data "app.py:." \
+            --add-data "paths.py:." \
+            --add-data "mistakes:mistakes" \
+            --add-data "latex_board:latex_board" \
+            --add-data "texlive:texlive" \
+            --collect-all streamlit \
+            --copy-metadata streamlit \
+            --hidden-import mistakes.worker
+
+      - name: Package App
+        script: |
+          cd dist
+          zip -r MathMistakeBook-macOS.zip MathMistakeBook.app
+
+    artifacts:
+      - dist/MathMistakeBook-macOS.zip
