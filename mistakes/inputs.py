@@ -41,18 +41,30 @@ def png_bytes(image: Image.Image) -> bytes:
     return output.getvalue()
 
 
+def open_pdf(data: bytes) -> pymupdf.Document:
+    try:
+        document = pymupdf.open(stream=data, filetype="pdf")
+    except (pymupdf.FileDataError, RuntimeError) as exc:
+        raise ValueError("无法打开这个 PDF 文件。") from exc
+    if document.needs_pass:
+        document.close()
+        raise ValueError("请上传已解密的 PDF。")
+    return document
+
+
+def page_count(filename: str, data: bytes) -> int:
+    if Path(filename).suffix.lower() != ".pdf":
+        return 1
+    with open_pdf(data) as document:
+        return len(document)
+
+
 def read_pages(filename: str, data: bytes, selection: str, whole_file: bool = False) -> Iterator[tuple[int, bytes]]:
     if not data or len(data) > MAX_UPLOAD_MB * 1024**2:
         raise ValueError(f"请选择有效文件，文件大小上限为 {MAX_UPLOAD_MB} MB。")
     suffix = Path(filename).suffix.lower()
     if suffix == ".pdf":
-        try:
-            document = pymupdf.open(stream=data, filetype="pdf")
-        except (pymupdf.FileDataError, RuntimeError) as exc:
-            raise ValueError("无法打开这个 PDF 文件。") from exc
-        with document:
-            if document.needs_pass:
-                raise ValueError("请上传已解密的 PDF。")
+        with open_pdf(data) as document:
             for number in pdf_pages(selection, len(document), whole_file):
                 page = document[number - 1]
                 scale = min(2.8, MAX_IMAGE_EDGE / max(page.rect.width, page.rect.height))

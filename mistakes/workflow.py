@@ -4,15 +4,16 @@ import re
 from time import sleep
 
 from .debug import debug_context, record
-from .deepseek import DeepSeek, ModelError
+from .deepseek import DeepSeek, ModelError, ModelOutputError
 from .inputs import read_pages
 from .latex import render_batch
-from .models import MISTAKE_LABELS, Exercise, ExerciseIssue, Followup, Original, PracticePlan, TextFragment
+from .models import ClassifiedOriginal, MISTAKE_LABELS, Exercise, ExerciseIssue, Followup, Original, PracticePlan, TextFragment
 from .selection import Target, printed_number
 from .store import Batch, GenerationJob, Question, Store
 from .verify import arithmetic_check
 
 Source = tuple[int, str, TextFragment]
+SourceGroup = list[Source]
 IntakeRecord = tuple[Original, str, list[bytes], list[bytes]]
 FIGURE_REFERENCE = re.compile(r"如图|图中|见图|下图|上图|右图|左图|图示|根据图")
 RECORD_REVIEW_QUESTION = (
@@ -27,8 +28,8 @@ def needs_figure(question: Question) -> bool:
                 or FIGURE_REFERENCE.search(original.statement))
 
 
-def choose_questions(sources: list[Source], targets: list[Target]) -> tuple[list[list[Source]], list[str]]:
-    groups: list[list[Source]] = []
+def choose_questions(sources: list[Source], targets: list[Target]) -> tuple[list[SourceGroup], list[str]]:
+    groups: list[SourceGroup] = []
     for source in sources:
         page, _, fragment = source
         if fragment.continuation and groups:
@@ -61,8 +62,76 @@ def choose_questions(sources: list[Source], targets: list[Target]) -> tuple[list
     return [group for index, group in enumerate(groups) if index in selected], warnings
 
 
+def marked_questions(groups: list[SourceGroup], warnings: list[str]) -> list[SourceGroup]:
+    selected = []
+    uncertain = []
+    for group in groups:
+        marks = [fragment.has_marks for _, _, fragment in group]
+        if True in marks:
+            selected.append(group)
+        elif None in marks:
+            page, _, first = group[0]
+            uncertain.append(f"第 {page} 页第 {first.number} 题" if first.number else f"第 {page} 页未编号题")
+    if uncertain:
+        examples = "、".join(uncertain[:5])
+        warnings.append(f"有 {len(uncertain)} 道题的订正痕迹无法确认（如{examples}），可以对照原图补录。")
+    return selected
+
+
+def organize_questions(model: DeepSeek, groups: list[SourceGroup], grade: str
+                       ) -> tuple[list[ClassifiedOriginal | Original], int]:
+    evidence = {
+        tuple(source_id for _, source_id, _ in group): [
+            {"id": source_id, "page": page, **fragment.model_dump(include={
+                "text", "number", "kind", "knowledge", "continuation", "uncertainty",
+            })}
+            for page, source_id, fragment in group
+        ]
+        for group in groups
+    }
+    keys = list(evidence)
+    matched: dict[tuple[str, ...], ClassifiedOriginal | Original] = {}
+    for start in range(0, len(keys), 8):
+        pending = keys[start:start + 8]
+        for _ in range(2):
+            try:
+                result = model.intake([evidence[key] for key in pending], grade, "", "").questions
+            except ModelOutputError:
+                # The model client already retried an invalid response.
+                break
+            candidates: dict[tuple[str, ...], list[ClassifiedOriginal]] = {key: [] for key in pending}
+            for original in result:
+                key = tuple(original.sources)
+                if key in candidates and original.kind in (evidence[key][0]["kind"], "geometry"):
+                    candidates[key].append(original)
+            for key, originals in candidates.items():
+                if len(originals) == 1:
+                    matched[key] = originals[0]
+            if len(result) != len(pending) or any(len(items) != 1 for items in candidates.values()):
+                record("intake.rejected", reason="题目来源或题型不匹配", expected=pending,
+                       actual=[item.sources for item in result])
+            pending = [key for key in pending if key not in matched]
+            if not pending:
+                break
+
+    fallback = 0
+    for key, group in zip(keys, groups):
+        if key in matched:
+            continue
+        fallback += 1
+        first = group[0][2]
+        statement = "\n".join(fragment.text for _, _, fragment in group)
+        uncertainty = "AI 未能可靠整理这道题，已保留识图原文。请对照原图核对题干、选项和知识点。"
+        if len(statement) > 4000:
+            uncertainty += "跨页转录超过题干长度上限，末尾内容待核对。"
+        matched[key] = Original(kind=first.kind, topic=first.knowledge or MISTAKE_LABELS[first.kind],
+                                statement=statement[:4000], sources=list(key), uncertainty=uncertainty)
+        record("intake.fallback", sources=key)
+    return [matched[key] for key in keys], fallback
+
+
 def analyze_upload(model: DeepSeek, filename: str, data: bytes, pages: str, grade: str,
-                   targets: list[Target], progress: Callable[[str], None]) -> tuple[list[IntakeRecord], list[str]]:
+                   targets: list[Target], progress: Callable[[str], None], marked_only: bool = False) -> tuple[list[IntakeRecord], list[str]]:
     if not grade.strip():
         raise ValueError("请选择年级。")
     sources = []
@@ -73,6 +142,7 @@ def analyze_upload(model: DeepSeek, filename: str, data: bytes, pages: str, grad
             source_id = f"{number}-{index}"
             sources.append((number, source_id, fragment))
     groups, warnings = choose_questions(sources, targets)
+
     text_groups = [
         group for group in groups
         if not any(fragment.kind == "geometry" or fragment.requires_figure
@@ -81,35 +151,21 @@ def analyze_upload(model: DeepSeek, filename: str, data: bytes, pages: str, grad
     ]
     if excluded := len(groups) - len(text_groups):
         warnings.append(f"已跳过 {excluded} 道图形题或需要读图的题。")
-    groups = text_groups
+    groups = marked_questions(text_groups, warnings) if marked_only else text_groups
     record("intake.selection", requested=[str(target) for target in targets],
+           marked_only=marked_only,
            recognized_count=len(sources), selected_sources=[[item[1] for item in group] for group in groups],
            warnings=warnings)
+    no_marked_questions = "未识别到可录入且有明确订正痕迹的题目，可以对照原图补录。"
     if not groups:
-        raise ModelError(" ".join(warnings) or "没有识别到选择题、填空题或应用题。")
-
-    evidence = [
-        [{"id": source_id, "page": number, **fragment.model_dump(include={
-            "text", "number", "kind", "knowledge", "continuation", "uncertainty",
-        })}
-         for number, source_id, fragment in group]
-        for group in groups
-    ]
+        if marked_only:
+            warnings.append(no_marked_questions)
+        return [], warnings or ["没有识别到选择题、填空题或应用题，可以手动补录。"]
 
     progress("Flash 正在整理错题并判断难度")
-    originals = []
-    for start in range(0, len(evidence), 8):
-        batch = evidence[start:start + 8]
-        expected = [tuple(item["id"] for item in group) for group in batch]
-        for _ in range(2):
-            result = model.intake(batch, grade, "", "").questions
-            by_source = {tuple(item.sources): item for item in result}
-            if len(result) == len(expected) and set(by_source) == set(expected):
-                originals.extend(by_source[key] for key in expected)
-                break
-            record("intake.rejected", reason="题目来源不匹配", expected=expected, actual=list(by_source))
-        else:
-            raise ModelError("整理时遗漏或混合了题目，请缩小识别范围后重试。")
+    originals, fallback = organize_questions(model, groups, grade)
+    if fallback:
+        warnings.append(f"有 {fallback} 道题未能可靠整理，已保留识图原文，请对照原图核对。")
 
     records = []
     excluded = 0
@@ -118,10 +174,6 @@ def analyze_upload(model: DeepSeek, filename: str, data: bytes, pages: str, grad
         if original.kind == "geometry" or FIGURE_REFERENCE.search(original.statement):
             excluded += 1
             continue
-        if original.kind not in MISTAKE_LABELS:
-            record("intake.rejected", reason="题型不匹配", sources=original.sources,
-                   expected_kind=first.kind, actual_kind=original.kind)
-            raise ModelError("整理后的题目与选中的原题或题型不一致，请重试。")
         issues = [original.uncertainty]
         for _, source_id, fragment in group:
             if fragment.uncertainty and not original.uncertainty:
@@ -140,8 +192,9 @@ def analyze_upload(model: DeepSeek, filename: str, data: bytes, pages: str, grad
         records.append((original, "", [], []))
     if excluded:
         warnings.append(f"整理时又跳过了 {excluded} 道需要读图的题。")
-    if not records:
-        raise ModelError("所选题目均需要读图，已过滤。")
+
+    if marked_only and not records:
+        warnings.append(no_marked_questions)
     return records, warnings
 
 

@@ -6,7 +6,7 @@ import sqlite3
 import unicodedata
 from uuid import uuid4
 
-from .models import Exercise, Followup, FollowupPractice, Original, PracticePlan
+from .models import Exercise, Followup, FollowupPractice, IntakeDraftState, Original, PracticePlan
 
 
 def category_name(original: Original) -> str:
@@ -49,6 +49,15 @@ class GenerationJob:
     action: str
     question_id: str | None = None
     followup: Followup | None = None
+
+
+@dataclass
+class IntakeDraft:
+    id: str
+    filename: str
+    created_at: str
+    revision: int
+    state: IntakeDraftState
 
 
 class Store:
@@ -135,6 +144,14 @@ class Store:
                     content TEXT NOT NULL,
                     PRIMARY KEY(job_id, role)
                 );
+                CREATE TABLE IF NOT EXISTS intake_drafts (
+                    id TEXT PRIMARY KEY,
+                    filename TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    revision INTEGER NOT NULL DEFAULT 0,
+                    state TEXT NOT NULL,
+                    source BLOB NOT NULL
+                );
             """)
             db.execute("BEGIN IMMEDIATE")
             columns = {row["name"] for row in db.execute("PRAGMA table_info(batches)")}
@@ -191,11 +208,62 @@ class Store:
         finally:
             db.close()
 
+    def create_draft(self, filename: str, source: bytes, state: IntakeDraftState) -> str:
+        draft_id = uuid4().hex
+        with self.connect() as db:
+            db.execute("INSERT INTO intake_drafts (id, filename, state, source) VALUES (?, ?, ?, ?)",
+                       (draft_id, filename, state.model_dump_json(), source))
+        return draft_id
+
+    def draft_summaries(self):
+        with self.connect() as db:
+            return db.execute("""
+                SELECT id, filename, created_at, json_extract(state, '$.title') AS title,
+                       json_array_length(state, '$.questions') AS count
+                FROM intake_drafts ORDER BY created_at DESC, rowid DESC
+            """).fetchall()
+
+    def get_draft(self, draft_id: str) -> IntakeDraft | None:
+        with self.connect() as db:
+            row = db.execute("SELECT id, filename, created_at, revision, state FROM intake_drafts WHERE id = ?",
+                             (draft_id,)).fetchone()
+        if row is None:
+            return None
+        return IntakeDraft(row["id"], row["filename"], row["created_at"], row["revision"],
+                           IntakeDraftState.model_validate_json(row["state"]))
+
+    def draft_source(self, draft_id: str) -> bytes:
+        with self.connect() as db:
+            row = db.execute("SELECT source FROM intake_drafts WHERE id = ?", (draft_id,)).fetchone()
+        if row is None:
+            raise ValueError("找不到这条录入草稿。")
+        return row["source"]
+
+    def update_draft(self, draft: IntakeDraft):
+        with self.connect() as db:
+            result = db.execute("UPDATE intake_drafts SET state = ?, revision = revision + 1 "
+                                "WHERE id = ? AND revision = ?",
+                                (draft.state.model_dump_json(), draft.id, draft.revision))
+            if result.rowcount != 1:
+                raise ValueError("草稿已在其他窗口更新或删除，请返回录入首页重新打开。")
+
+    @staticmethod
+    def _remove_draft(db: sqlite3.Connection, draft: IntakeDraft):
+        result = db.execute("DELETE FROM intake_drafts WHERE id = ? AND revision = ?", (draft.id, draft.revision))
+        if result.rowcount != 1:
+            raise ValueError("草稿已更改，请返回录入首页重新打开。")
+
+    def delete_draft(self, draft: IntakeDraft):
+        with self.connect() as db:
+            self._remove_draft(db, draft)
+
     def save_intake(self, filename: str, records: list[tuple[Original, str, list[bytes], list[bytes]]],
                     grade: str, curriculum: str, plan: PracticePlan, *, uploaded_at: str | None = None,
-                    queue_generation: bool = False, title: str = "") -> str:
+                    queue_generation: bool = False, title: str = "", draft: IntakeDraft | None = None) -> str:
         batch_id = uuid4().hex
         with self.connect() as db:
+            if draft is not None:
+                self._remove_draft(db, draft)
             db.execute(
                 "INSERT INTO batches (id, filename, grade, curriculum, plan, created_at, title)"
                 " VALUES (?, ?, ?, ?, ?, coalesce(?, CURRENT_TIMESTAMP), ?)",

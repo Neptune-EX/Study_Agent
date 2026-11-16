@@ -5,28 +5,23 @@ import sqlite3
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv, set_key
-from pydantic import ValidationError
 import streamlit as st
 
-from mistakes.debug import debug_run, record
-from mistakes.deepseek import DeepSeek, ModelError
+from mistakes.deepseek import ModelError
 from mistakes.download import download_file
-from mistakes.inputs import IMAGE_TYPES, MAX_PAGES, MAX_UPLOAD_MB
+from mistakes.drafts import confirm_original
+from mistakes.intake_ui import practice_fields, upload
 from mistakes.latex import ORIGINALS_MARKER, CompileError, render_batch
 from mistakes.launcher import start_worker
-from mistakes.models import DIFFICULTY_LABELS, FollowupPractice, Original, PracticePlan
-from mistakes.selection import read_targets
+from mistakes.models import DIFFICULTY_LABELS, FollowupPractice, Original
 from mistakes.store import Batch, Question, Store
-from mistakes.workflow import RECORD_REVIEW_QUESTION, IntakeRecord, analyze_upload, needs_figure
+from mistakes.workflow import RECORD_REVIEW_QUESTION, needs_figure
 from paths import DATA_DIR, ENV_FILE
 
 
 load_dotenv(ENV_FILE)
 
 ERRORS = (ModelError, CompileError, ValueError, OSError, sqlite3.Error)
-GRADES = ["", "一年级", "二年级", "三年级", "四年级", "五年级", "六年级", "七年级", "八年级", "九年级",
-          "高一", "高二", "高三"]
-LEVELS = ["巩固基础", "与原题相当", "适度提高"]
 LOCAL_TIME = ZoneInfo("Asia/Shanghai")
 
 
@@ -55,51 +50,6 @@ def setup_api_key_dialog():
                 return
             os.environ["DEEPSEEK_API_KEY"] = key
             st.rerun()
-
-def upload(store: Store):
-    st.title("录入错题")
-    st.caption("上传图片或 PDF，确认 AI 归纳的考点，再生成同类练习。")
-    with st.container(border=True):
-        uploaded = st.file_uploader(
-            "题目文件", type=["pdf", *sorted(suffix[1:] for suffix in IMAGE_TYPES)],
-            help=f"支持扫描件、照片和 PDF。单文件最大 {MAX_UPLOAD_MB} MB。",
-        )
-        if uploaded is None:
-            for key in ("upload_id", "upload_at", "upload_open", "upload_preview", "upload_batch"):
-                st.session_state.pop(key, None)
-            return
-
-        if uploaded.file_id != st.session_state.get("upload_id"):
-            st.session_state.update({
-                "upload_id": uploaded.file_id, "upload_open": True,
-                "upload_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f"),
-            })
-            st.session_state.pop("upload_preview", None)
-            st.session_state.pop("upload_batch", None)
-        if st.session_state.get("upload_batch"):
-            st.success("已保存到错题记录。")
-            return
-        if not st.session_state.get("upload_open") and st.button("继续录入", type="primary"):
-            st.session_state["upload_open"] = True
-    if st.session_state.get("upload_open"):
-        intake_dialog(store, uploaded)
-
-
-def close_intake_dialog():
-    st.session_state["upload_open"] = False
-
-
-def practice_fields(default: PracticePlan) -> PracticePlan:
-    left, right = st.columns(2)
-    count = left.number_input("每道原题的练习数", 1, 6, default.count)
-    difficulty = right.selectbox("难度", LEVELS, index=LEVELS.index(default.difficulty))
-    instructions = st.text_area(
-        "补充要求（选填）", default.instructions, max_chars=1500,
-        placeholder="例如 用小学生能理解的方法解析，重点练习单位换算。",
-    )
-    return PracticePlan(count=count, difficulty=difficulty, instructions=instructions,
-                        allow_diagrams=default.allow_diagrams)
-
 
 def review_fields(original: Original, key: str, *, defer_by_default: bool = False) -> tuple[dict, bool]:
     label = f"第 {original.number} 题" if original.number else "原题"
@@ -131,105 +81,6 @@ def review_fields(original: Original, key: str, *, defer_by_default: bool = Fals
             data["knowledge"] = data["topic"] = knowledge
             data["subtype"] = ""
         return data, defer
-
-
-def confirm_original(data: dict) -> Original:
-    original = Original.model_validate(data)
-    if "[未见题干]" in original.statement or not original.statement.strip("_ \t"):
-        raise ValueError("请补全原题题干。")
-    if original.kind == "choice" and len(original.options) < 2:
-        raise ValueError("选择题至少需要两个选项。")
-    if original.kind == "blank" and "___" not in original.statement:
-        raise ValueError("请在填空题中用 ______ 标出空位。")
-    return original
-
-
-@st.dialog("录入错题", width="large", on_dismiss=close_intake_dialog)
-def intake_dialog(store: Store, uploaded):
-    st.caption(uploaded.name)
-    if preview := st.session_state.get("upload_preview"):
-        confirm_upload(store, uploaded, *preview)
-        return
-
-    st.subheader("选择识别范围")
-    st.caption("图形题和需要读图的题会自动跳过。")
-    scope = st.radio("错题范围", ["指定题号", "整份都是错题"], horizontal=True, key="upload_scope")
-    whole = scope == "整份都是错题"
-    with st.form(f"analyze-{uploaded.file_id}"):
-        left, right = st.columns(2)
-        grade = left.selectbox("年级", GRADES, format_func=lambda grade: grade or "请选择")
-        selection = "" if whole else right.text_input("错题题号", placeholder="例如 2,5-7 或 3:9",
-                                                        help="3:9 表示第 3 页的第 9 题。")
-        pages = ""
-        if uploaded.name.lower().endswith(".pdf") and not whole:
-            pages = st.text_input("PDF 页码范围（选填）", placeholder="例如 1,3-5",
-                                  help=f"留空检查全部页面，指定题号时最多检查 {MAX_PAGES} 页。")
-        plan = practice_fields(PracticePlan())
-        submitted = st.form_submit_button("识别题目与知识点", type="primary")
-    if not submitted:
-        return
-    try:
-        targets = read_targets(selection, whole)
-        with debug_run("analyze_upload", filename=uploaded.name, pages=pages, whole=whole) as run_id, \
-                st.status("正在识别并归纳知识点", expanded=True) as status:
-            if run_id:
-                st.caption(f"调试编号 {run_id}")
-            records, warnings = analyze_upload(DeepSeek(), uploaded.name, uploaded.getvalue(), pages,
-                                               grade, targets, st.write)
-            status.update(label="识别完成", state="complete")
-    except ERRORS as exc:
-        st.error(str(exc))
-        return
-    st.session_state["upload_preview"] = (records, warnings, grade, plan, run_id)
-    st.rerun()
-
-
-def confirm_upload(store: Store, uploaded, records: list[IntakeRecord], warnings: list[str],
-                   grade: str, plan: PracticePlan, analysis_run_id: str | None):
-    st.subheader("确认题目与知识点")
-    st.caption(f"{grade} · 识别到 {len(records)} 道题")
-    if analysis_run_id:
-        st.caption(f"识别调试编号 {analysis_run_id}")
-    for warning in warnings:
-        st.warning(warning)
-    if st.button("返回修改识别范围"):
-        st.session_state.pop("upload_preview", None)
-        st.rerun()
-    with st.form(f"confirm-{uploaded.file_id}"):
-        title = st.text_input("记录名称", Path(uploaded.name).stem[:120], max_chars=120)
-        rows = [review_fields(original, f"{uploaded.file_id}-{index}")
-                for index, (original, *_) in enumerate(records)]
-        submitted = st.form_submit_button("确认并生成练习", type="primary")
-    if not submitted:
-        return
-    try:
-        if not title.strip():
-            raise ValueError("请输入记录名称。")
-        confirmed = [
-            record if defer else (confirm_original(data), *record[1:])
-            for (data, defer), record in zip(rows, records)
-        ]
-    except (ValidationError, ValueError) as exc:
-        st.error(str(exc))
-        return
-    try:
-        with debug_run("confirm_upload", filename=uploaded.name) as run_id:
-            batch_id = store.save_intake(
-                uploaded.name, confirmed, grade, "", plan, uploaded_at=st.session_state["upload_at"],
-                queue_generation=True, title=title,
-            )
-            record("intake.saved", batch_id=batch_id, count=len(confirmed))
-            st.session_state["upload_batch"] = batch_id
-            start_worker(store.path, submitted=True)
-    except ERRORS as exc:
-        st.error(str(exc))
-        return
-    st.session_state["history_notice"] = (batch_id, warnings, run_id)
-    st.session_state["last_batch"] = batch_id
-    st.session_state["open_history"] = True
-    st.session_state.pop("upload_preview", None)
-    close_intake_dialog()
-    st.rerun()
 
 
 @st.dialog("修改错题记录", width="large")

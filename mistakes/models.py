@@ -18,7 +18,7 @@ class Model(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
-class TextFragment(Model):
+class PrintedFragment(Model):
     text: Statement
     number: str = Field(default="", max_length=35)
     kind: MistakeKind | Literal["vertical", "other"]
@@ -29,8 +29,32 @@ class TextFragment(Model):
     uncertainty: str = Field(default="", max_length=1500)
 
 
+class TextFragment(PrintedFragment):
+    has_marks: bool | None = None
+
+
 class TextPageReading(Model):
     fragments: list[TextFragment] = Field(max_length=60)
+
+
+class RecognizedFragment(PrintedFragment):
+    teacher_mark: Literal[
+        "check", "full_score", "none", "uncertain",
+        "circled_number", "cross", "deduction", "partial", "written_correction",
+    ] | None = None
+
+    def to_text_fragment(self) -> TextFragment:
+        if self.teacher_mark in ("circled_number", "cross", "deduction", "partial", "written_correction"):
+            has_marks = True
+        elif self.teacher_mark in ("check", "full_score", "none"):
+            has_marks = False
+        else:
+            has_marks = None
+        return TextFragment(**self.model_dump(exclude={"teacher_mark"}), has_marks=has_marks)
+
+
+class PageRecognition(Model):
+    fragments: list[RecognizedFragment] = Field(max_length=60)
 
 
 class PathShape(Model):
@@ -119,6 +143,54 @@ class ClassifiedOriginal(TextOriginal):
 
 class Intake(Model):
     questions: list[ClassifiedOriginal] = Field(max_length=100)
+
+
+class DraftQuestionText(Model):
+    model_config = ConfigDict(str_strip_whitespace=False)
+
+    kind: Literal["choice", "blank", "word"] = "word"
+    number: str = Field(default="", max_length=35)
+    knowledge: str = Field(default="", max_length=120)
+    difficulty: QuestionDifficulty | None = None
+    statement: str = Field(default="", max_length=4000)
+    options: str = Field(default="", max_length=1000)
+
+
+class DraftQuestion(Model):
+    id: str
+    page: int
+    text: DraftQuestionText
+    original: Original | None = None
+    defer: bool = False
+
+
+class IntakeChatMessage(Model):
+    role: Literal["user", "assistant"]
+    content: str
+    page: int
+
+
+class IntakeCorrection(Model):
+    question_id: str = ""
+    question: DraftQuestionText
+
+
+class IntakeReply(Model):
+    reply: Statement
+    corrections: list[IntakeCorrection] = Field(default_factory=list, max_length=8)
+
+
+class IntakeDraftState(Model):
+    title: str
+    grade: str
+    plan: PracticePlan
+    page_count: int
+    questions: list[DraftQuestion]
+    warnings: list[str]
+    analysis_run_id: str | None = None
+    chat: list[IntakeChatMessage] = Field(default_factory=list)
+    corrections: list[IntakeCorrection] = Field(default_factory=list)
+    correction_page: int = 1
 
 
 class Review(Model):
